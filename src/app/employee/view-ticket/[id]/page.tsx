@@ -12,7 +12,7 @@ export default function ViewTicket() {
   const [ticket, setTicket] = useState<any>(null)
   const [logs,   setLogs]   = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL
 
   useEffect(() => {
     api.get(`/api/tickets/${id}`).then(r => { setTicket(r.data); setLogs(r.data.logs) }).catch(() => router.replace('/employee/dashboard')).finally(() => setLoading(false))

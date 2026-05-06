@@ -17,7 +17,7 @@ export default function TicketDetail() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://:5000'
 
   const load = async () => {
     try {

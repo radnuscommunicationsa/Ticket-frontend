@@ -19,8 +19,6 @@ export default function Profile() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // baseURL = http://localhost:5000/api
-        // so /auth/me => http://localhost:5000/api/auth/me ✅
         const me = await api.get('/auth/me')
         const userData = me?.data?.user || me?.data || {}
         setProfile(userData)
