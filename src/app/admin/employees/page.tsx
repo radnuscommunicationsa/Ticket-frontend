@@ -27,7 +27,7 @@ setAdmins(data?.admins ?? [])
 
   const handleDelete=async(id:string)=>{
     if(!confirm('Delete this employee and all their tickets?'))return
-    try{await api.delete(`/api/employees/${id}`);setMsg({type:'success',text:'Employee deleted.'});load()}
+    try{await api.delete(`/employees/${id}`);setMsg({type:'success',text:'Employee deleted.'});load()}
     catch(e:any){setMsg({type:'error',text:e.response?.data?.error||'Delete failed'})}
   }
 
