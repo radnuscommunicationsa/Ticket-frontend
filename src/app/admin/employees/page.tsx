@@ -79,7 +79,7 @@ setAdmins(data?.admins ?? [])
     const [d,setD]=useState({name:emp.name,emp_id:emp.emp_id,email:emp.email,department:emp.department||'',phone:emp.phone||'',role:emp.role,status:emp.status,new_password:''})
     const submit=async(e:React.FormEvent)=>{
       e.preventDefault()
-      try{await api.patch(`/api/employees/${emp._id||emp.id}`,d);setMsg({type:'success',text:`${d.name} updated!`});setEditEmp(null);setEditAdmin(null);load()}
+      try{await api.patch(`/employees/${emp._id||emp.id}`,d);setMsg({type:'success',text:`${d.name} updated!`});setEditEmp(null);setEditAdmin(null);load()}
       catch(err:any){setMsg({type:'error',text:err.response?.data?.error||'Failed'})}
     }
     return <form onSubmit={submit}>
