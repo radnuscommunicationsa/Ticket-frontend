@@ -28,7 +28,7 @@ export default function RaiseTicket() {
       const fd = new FormData()
       Object.entries(form).forEach(([k,v]) => fd.append(k, v))
       if (file) fd.append('attachment', file)
-      const { data } = await api.post('/api/tickets', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      const { data } = await api.post('/tickets', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
       setMsg({ type:'success', text:`Ticket ${data.ticket_no} raised successfully! IT team will respond within 4 business hours.` })
       setForm({ category:'', priority:'', subject:'', description:'', asset:'', contact_pref:'Email' })
       setFile(null)
