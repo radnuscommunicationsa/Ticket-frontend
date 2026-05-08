@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-
 import api from '..//lib/api'
 import { getUser, isLoggedIn, clearAuth } from '../lib/auth'
+import { LayoutDashboard, Plus, Monitor, Bell, User, LogOut, Ticket, Users, BarChart3, Settings } from 'lucide-react'
 
 function initials(name?: string) {
   if (!name) return "U";
@@ -63,19 +63,20 @@ export default function AppLayout({ children, role }: LayoutProps) {
   const nav = role === 'admin' ? adminNav : empNav
 
   const adminSide = [
-    { href: '/admin/dashboard', icon: '📊', label: 'Dashboard' },
-    { href: '/admin/tickets', icon: '🎫', label: 'All Tickets' },
-    { href: '/admin/assets', icon: '🖥️', label: 'Assets' },
-    { href: '/admin/employees', icon: '👥', label: 'Employees' },
-    { href: '/admin/reports', icon: '📈', label: 'Monthly Report' },
-    { href: '/admin/notifications', icon: '🔔', label: 'Notifications', badge: notifCount },
-  ]
+  { href: '/admin/dashboard', icon: <LayoutDashboard size={16}/>, label: 'Dashboard' },
+  { href: '/admin/tickets', icon: <Ticket size={16}/>, label: 'All Tickets' },
+  { href: '/admin/assets', icon: <Monitor size={16}/>, label: 'Assets' },
+  { href: '/admin/employees', icon: <Users size={16}/>, label: 'Employees' },
+  { href: '/admin/reports', icon: <BarChart3 size={16}/>, label: 'Monthly Report' },
+  { href: '/admin/notifications', icon: <Bell size={16}/>, label: 'Notifications', badge: notifCount },
+]
   const empSide = [
-    { href: '/employee/dashboard', icon: '📋', label: 'My Tickets' },
-    { href: '/employee/raise-ticket', icon: '➕', label: 'Raise Ticket' },
-    { href: '/employee/notifications', icon: '🔔', label: 'Notifications', badge: notifCount },
-    { href: '/employee/profile', icon: '👤', label: 'My Profile' },
-  ]
+  { href: '/employee/dashboard', icon: <LayoutDashboard size={16}/>, label: 'My Tickets' },
+  { href: '/employee/raise-ticket', icon: <Plus size={16}/>, label: 'Raise Ticket' },
+  { href: '/employee/my-assets', icon: <Monitor size={16}/>, label: 'My Assets' },
+  { href: '/employee/notifications', icon: <Bell size={16}/>, label: 'Notifications', badge: notifCount },
+  { href: '/employee/profile', icon: <User size={16}/>, label: 'My Profile' },
+]
   const sideLinks = role === 'admin' ? adminSide : empSide
 
   return (

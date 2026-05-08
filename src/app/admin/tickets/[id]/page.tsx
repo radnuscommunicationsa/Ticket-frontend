@@ -21,7 +21,7 @@ export default function TicketDetail() {
 
   const load = async () => {
     try {
-      const { data } = await api.get(`/api/tickets/${id}`)
+      const { data } = await api.get(`/tickets/${id}`)
       setTicket(data); setLogs(data.logs); setStatus(data.status)
     } catch { router.replace('/admin/tickets') }
     finally { setLoading(false) }
@@ -31,7 +31,7 @@ export default function TicketDetail() {
   const updateStatus = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true); setMsg(null)
     try {
-      await api.patch(`/api/tickets/${id}/status`, { status, note })
+      await api.patch(`/tickets/${id}`, { status })
       setMsg({ type:'success', text:'Ticket updated successfully!' })
       setNote(''); load()
     } catch (e: any) { setMsg({ type:'error', text: e.response?.data?.error || 'Update failed' }) }

@@ -15,7 +15,7 @@ export default function ViewTicket() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL
 
   useEffect(() => {
-    api.get(`/api/tickets/${id}`).then(r => { setTicket(r.data); setLogs(r.data.logs) }).catch(() => router.replace('/employee/dashboard')).finally(() => setLoading(false))
+    api.get(`/tickets/${id}`).then(r => { setTicket(r.data); setLogs(r.data.logs) }).catch(() => router.replace('/employee/dashboard')).finally(() => setLoading(false))
   }, [id])
 
   if (loading) return <AppLayout role="employee"><div style={{ color:'var(--text-muted)' }}>Loading...</div></AppLayout>

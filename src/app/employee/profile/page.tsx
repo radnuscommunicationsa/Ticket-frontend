@@ -5,6 +5,20 @@ import { PageHeader, Alert } from '@/components/ui'
 import api from '@/lib/api'
 import { User } from 'lucide-react'
 
+// ✅ MOVED OUTSIDE - fixes typing issue
+const inp = { width:'100%', padding:'10px 12px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text-main)', fontSize:'0.85rem' }
+
+const FG = ({label,children}:{label:string,children:React.ReactNode}) => (
+  <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:'1rem' }}>
+    <label style={{ fontSize:'0.73rem', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.08em', color:'var(--text-muted)' }}>{label}</label>
+    {children}
+  </div>
+)
+
+function initials(n:string){ if(!n) return ''; const p=n.split(' '); return (p[0]?.[0]+(p[1]?.[0]||'')).toUpperCase() }
+const colors=['#c62828','#6a1b9a','#00695c','#e65100','#2e7d32','#37474f']
+function avatarColor(n:string){ if(!n) return '#999'; let h=0; for(const c of n) h+=c.charCodeAt(0); return colors[h%colors.length] }
+
 export default function Profile() {
   const [profile, setProfile] = useState<any>(null)
   const [msg, setMsg] = useState<{type:'success'|'error',text:string}|null>(null)
@@ -14,7 +28,6 @@ export default function Profile() {
   const [newPass, setNewPass] = useState('')
   const [conPass, setConPass] = useState('')
   const [strength, setStrength] = useState(0)
-  const [stats, setStats] = useState<any>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -26,12 +39,6 @@ export default function Profile() {
         setPhone(userData?.phone || '')
       } catch (err) {
         console.error('Profile fetch error:', err)
-      }
-      try {
-        const st = await api.get('/tickets/my-stats')
-        setStats(st?.data || null)
-      } catch (err) {
-        console.error('Stats fetch error:', err)
       }
     }
     loadData()
@@ -72,16 +79,6 @@ export default function Profile() {
 
   const strColors = ['','#e53935','#e53935','#fb8c00','#f9a825','#2e7d32']
   const strLabels = ['','Very Weak','Weak','Good','Strong','Very Strong']
-  const inp = { width:'100%', padding:'10px 12px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text-main)', fontSize:'0.85rem' }
-  const FG = ({label,children}:{label:string,children:React.ReactNode}) => (
-    <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:'1rem' }}>
-      <label style={{ fontSize:'0.73rem', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.08em', color:'var(--text-muted)' }}>{label}</label>
-      {children}
-    </div>
-  )
-  function initials(n:string){ if(!n) return ''; const p=n.split(' '); return (p[0]?.[0]+(p[1]?.[0]||'')).toUpperCase() }
-  const colors=['#c62828','#6a1b9a','#00695c','#e65100','#2e7d32','#37474f']
-  function avatarColor(n:string){ if(!n) return '#999'; let h=0; for(const c of n) h+=c.charCodeAt(0); return colors[h%colors.length] }
 
   return (
     <AppLayout role="employee">
