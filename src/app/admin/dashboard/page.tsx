@@ -1,19 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-
 import AppLayout from '@/components/AppLayout'
-
-import {
-  PageHeader,
-  PriorityBadge,
-  StatusBadge,
-  DeptBadge,
-} from '@/components/ui'
-
-import api from '@/lib/api'
-
+import { PageHeader } from '@/components/ui'
 import {
   Ticket,
   MailOpen,
@@ -23,13 +13,24 @@ import {
   Archive,
 } from 'lucide-react'
 
+// ─────────────────────────────────────────────────────────────
+// STAT CARD COMPONENT
+// ─────────────────────────────────────────────────────────────
 function BigStatCard({
   icon: Icon,
   label,
   value,
   sub,
   color,
-}: any) {
+}: {
+  icon: any
+  label: string
+  value: number
+  sub: string
+  color: string
+}) {
+  const [hovered, setHovered] = useState(false)
+
   return (
     <div
       style={{
@@ -42,26 +43,14 @@ function BigStatCard({
         gap: 10,
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: `0 4px 24px ${color}18`,
+        boxShadow: hovered ? `0 8px 32px ${color}30` : `0 4px 24px ${color}18`,
+        transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
         transition: 'transform 0.18s, box-shadow 0.18s',
         cursor: 'default',
       }}
-      onMouseEnter={(e) => {
-        ;(e.currentTarget as HTMLDivElement).style.transform =
-          'translateY(-3px)'
-
-        ;(e.currentTarget as HTMLDivElement).style.boxShadow =
-          `0 8px 32px ${color}30`
-      }}
-      onMouseLeave={(e) => {
-        ;(e.currentTarget as HTMLDivElement).style.transform =
-          'translateY(0)'
-
-        ;(e.currentTarget as HTMLDivElement).style.boxShadow =
-          `0 4px 24px ${color}18`
-      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      {/* Background Circle */}
       <div
         style={{
           position: 'absolute',
@@ -74,7 +63,6 @@ function BigStatCard({
         }}
       />
 
-      {/* Icon */}
       <div
         style={{
           width: 54,
@@ -89,7 +77,6 @@ function BigStatCard({
         <Icon size={30} color={color} strokeWidth={1.8} />
       </div>
 
-      {/* Value */}
       <div
         style={{
           fontSize: '2.4rem',
@@ -99,10 +86,9 @@ function BigStatCard({
           fontVariantNumeric: 'tabular-nums',
         }}
       >
-        {value ?? '—'}
+        {value ?? 0}
       </div>
 
-      {/* Label */}
       <div>
         <div
           style={{
@@ -130,23 +116,118 @@ function BigStatCard({
   )
 }
 
+// ─────────────────────────────────────────────────────────────
+// STATUS + PRIORITY COLORS
+// ─────────────────────────────────────────────────────────────
+const STATUS_COLOR: Record<string, string> = {
+  open: '#3B82F6',
+  'in-progress': '#F59E0B',
+  resolved: '#10B981',
+  closed: '#64748B',
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  open: 'Open',
+  'in-progress': 'In Progress',
+  resolved: 'Resolved',
+  closed: 'Closed',
+}
+
+const PRIORITY_COLOR: Record<string, string> = {
+  critical: '#EF4444',
+  high: '#F97316',
+  medium: '#F59E0B',
+  low: '#10B981',
+}
+
+const Badge = ({
+  text,
+  color,
+}: {
+  text: string
+  color: string
+}) => (
+  <span
+    style={{
+      background: `${color}18`,
+      color,
+      fontSize: '0.68rem',
+      fontWeight: 700,
+      padding: '3px 9px',
+      borderRadius: 20,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+      whiteSpace: 'nowrap',
+    }}
+  >
+    {text}
+  </span>
+)
+
+// ─────────────────────────────────────────────────────────────
+// MAIN PAGE
+// ─────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+
+  const [tickets, setTickets] = useState<any[]>([])
+
+  const [stats, setStats] = useState({
+    total: 0,
+    open: 0,
+    critical: 0,
+    in_progress: 0,
+    resolved: 0,
+    closed: 0,
+  })
 
   useEffect(() => {
-    api
-      .get('/tickets/stats')
-      .then((r) => {
-        setStats(r.data)
+    fetch('http://localhost:5000/api/tickets')
+      .then((res) => res.json())
+      .then((data) => {
+        setTickets(data)
+
+        setStats({
+          total: data.length,
+
+          open: data.filter(
+            (t: any) => t.status === 'open'
+          ).length,
+
+          critical: data.filter(
+            (t: any) =>
+              t.priority === 'critical' &&
+              !['resolved', 'closed'].includes(t.status)
+          ).length,
+
+          in_progress: data.filter(
+            (t: any) => t.status === 'in-progress'
+          ).length,
+
+          resolved: data.filter(
+            (t: any) => t.status === 'resolved'
+          ).length,
+
+          closed: data.filter(
+            (t: any) => t.status === 'closed'
+          ).length,
+        })
+
         setLoading(false)
       })
-      .catch(() => {
-        setError(true)
+      .catch((err) => {
+        console.error('API Error:', err)
         setLoading(false)
       })
   }, [])
+
+  const recentTickets = [...tickets]
+    .sort(
+      (a: any, b: any) =>
+        new Date(b.created_at).getTime() -
+        new Date(a.created_at).getTime()
+    )
+    .slice(0, 5)
 
   return (
     <AppLayout role="admin">
@@ -156,43 +237,24 @@ export default function AdminDashboard() {
         subtitle="Welcome back, IT Administrator — here's your system overview"
       />
 
-      {loading && (
+      {loading ? (
         <div
           style={{
             color: 'var(--text-muted)',
-            padding: '2rem',
+            padding: '3rem',
             textAlign: 'center',
             fontSize: '0.9rem',
           }}
         >
           Loading dashboard...
         </div>
-      )}
-
-      {error && (
-        <div
-          style={{
-            background: 'rgba(198,40,40,0.08)',
-            border: '1px solid rgba(198,40,40,0.25)',
-            borderRadius: 10,
-            padding: '1.2rem 1.6rem',
-            color: 'var(--red-primary)',
-            fontSize: '0.85rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          ⚠️ Could not load stats — make sure backend API is
-          running.
-        </div>
-      )}
-
-      {!loading && stats && (
+      ) : (
         <>
           {/* STAT CARDS */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(3,1fr)',
+              gridTemplateColumns: 'repeat(3, 1fr)',
               gap: '1.1rem',
               marginBottom: '1.8rem',
             }}
@@ -224,7 +286,7 @@ export default function AdminDashboard() {
             <BigStatCard
               icon={Settings}
               label="In Progress"
-              value={stats.in_progress ?? stats.inprog}
+              value={stats.in_progress}
               sub="Being worked on"
               color="#1565c0"
             />
@@ -244,6 +306,156 @@ export default function AdminDashboard() {
               sub="Archived"
               color="#37474f"
             />
+          </div>
+
+          {/* RECENT TICKETS */}
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 14,
+              overflow: 'hidden',
+              marginBottom: '1.5rem',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1rem 1.4rem',
+                borderBottom: '1px solid var(--border)',
+              }}
+            >
+              <span
+                style={{
+                  fontWeight: 700,
+                  fontSize: '0.92rem',
+                  color: 'var(--text-main)',
+                }}
+              >
+                Recent Tickets
+              </span>
+
+              <Link
+                href="/admin/tickets"
+                style={{
+                  fontSize: '0.78rem',
+                  color: 'var(--primary)',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                View All →
+              </Link>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  fontSize: '0.82rem',
+                }}
+              >
+                <thead>
+                  <tr>
+                    {[
+                      'Ticket ID',
+                      'Subject',
+                      'Employee',
+                      'Department',
+                      'Priority',
+                      'Status',
+                      'Created',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        style={{
+                          padding: '9px 1rem',
+                          textAlign: 'left',
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          letterSpacing: '0.08em',
+                          color: 'var(--text-muted)',
+                          textTransform: 'uppercase',
+                          borderBottom: '1px solid var(--border)',
+                          background: 'var(--bg)',
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {recentTickets.map((t: any) => (
+                    <tr
+                      key={t._id}
+                      style={{
+                        borderBottom:
+                          '1px solid var(--border-mid)',
+                      }}
+                    >
+                      <td style={{ padding: '10px 1rem' }}>
+                        {t.ticket_no}
+                      </td>
+
+                      <td style={{ padding: '10px 1rem' }}>
+                        {t.subject}
+                      </td>
+
+                      <td style={{ padding: '10px 1rem' }}>
+                        {t.emp_name}
+                      </td>
+
+                      <td style={{ padding: '10px 1rem' }}>
+                        {t.department}
+                      </td>
+
+                      <td style={{ padding: '10px 1rem' }}>
+                        <Badge
+                          text={t.priority}
+                          color={
+                            PRIORITY_COLOR[t.priority] ??
+                            '#64748B'
+                          }
+                        />
+                      </td>
+
+                      <td style={{ padding: '10px 1rem' }}>
+                        <Badge
+                          text={
+                            STATUS_LABEL[t.status] ??
+                            t.status
+                          }
+                          color={
+                            STATUS_COLOR[t.status] ??
+                            '#64748B'
+                          }
+                        />
+                      </td>
+
+                      <td style={{ padding: '10px 1rem' }}>
+                        {t.created_at}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div
+              style={{
+                padding: '0.75rem 1.4rem',
+                borderTop: '1px solid var(--border)',
+                fontSize: '0.75rem',
+                color: 'var(--text-muted)',
+              }}
+            >
+              Showing {tickets.length} tickets
+            </div>
           </div>
         </>
       )}

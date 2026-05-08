@@ -6,10 +6,18 @@ import { PageHeader, Alert } from '@/components/ui'
 import api from '@/lib/api'
 import { getUser } from '@/lib/auth'
 
+// ✅ MOVED OUTSIDE - fixes cannot type issue
+const inp = { width:'100%', padding:'10px 12px', borderRadius:5, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text-main)', fontSize:'0.85rem' }
+
+const FG = ({label,children,full}:{label:string,children:React.ReactNode,full?:boolean}) => (
+  <div style={{ display:'flex', flexDirection:'column', gap:6, gridColumn: full?'1/-1':'auto' }}>
+    <label style={{ fontSize:'0.73rem', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.08em', color:'var(--text-muted)' }}>{label}</label>
+    {children}
+  </div>
+)
+
 export default function RaiseTicket() {
   const router = useRouter()
-
-  // ✅ FIX: Use state + useEffect instead of typeof window check
   const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
@@ -17,32 +25,26 @@ export default function RaiseTicket() {
   }, [])
 
   const [form, setForm] = useState({ category:'', priority:'', subject:'', description:'', asset:'', contact_pref:'Email' })
-  const [file, setFile] = useState<File|null>(null)
-  const [msg,  setMsg]  = useState<{type:'success'|'error',text:string}|null>(null)
+  const [msg, setMsg] = useState<{type:'success'|'error',text:string}|null>(null)
   const [loading, setLoading] = useState(false)
   const [drag, setDrag] = useState(false)
+  const [file, setFile] = useState<File|null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setLoading(true); setMsg(null)
+    e.preventDefault()
+    setLoading(true)
+    setMsg(null)
     try {
-      const fd = new FormData()
-      Object.entries(form).forEach(([k,v]) => fd.append(k, v))
-      if (file) fd.append('attachment', file)
-      const { data } = await api.post('/tickets', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      const { data } = await api.post('/tickets', form)
       setMsg({ type:'success', text:`Ticket ${data.ticket_no} raised successfully! IT team will respond within 4 business hours.` })
       setForm({ category:'', priority:'', subject:'', description:'', asset:'', contact_pref:'Email' })
       setFile(null)
-    } catch (err:any) { setMsg({ type:'error', text: err.response?.data?.error || 'Failed to raise ticket' }) }
-    finally { setLoading(false) }
+    } catch (err:any) {
+      setMsg({ type:'error', text: err.response?.data?.error || 'Failed to raise ticket' })
+    } finally {
+      setLoading(false)
+    }
   }
-
-  const inp = { width:'100%', padding:'10px 12px', borderRadius:5, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text-main)', fontSize:'0.85rem' }
-  const FG = ({label,children,full}:{label:string,children:React.ReactNode,full?:boolean}) => (
-    <div style={{ display:'flex', flexDirection:'column', gap:6, gridColumn: full?'1/-1':'auto' }}>
-      <label style={{ fontSize:'0.73rem', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.08em', color:'var(--text-muted)' }}>{label}</label>
-      {children}
-    </div>
-  )
 
   return (
     <AppLayout role="employee">
@@ -51,13 +53,16 @@ export default function RaiseTicket() {
 
       {/* Your Details */}
       <div className="card" style={{ marginBottom:'1rem' }}>
-        <div style={{ padding:'1rem 1.4rem', borderBottom:'1px solid var(--border)', background:'var(--bg-mid)' }}><span style={{ fontSize:'0.87rem', fontWeight:600 }}>Your Details</span></div>
+        <div style={{ padding:'1rem 1.4rem', borderBottom:'1px solid var(--border)', background:'var(--bg-mid)' }}>
+          <span style={{ fontSize:'0.87rem', fontWeight:600 }}>Your Details</span>
+        </div>
         <div style={{ padding:'1.5rem' }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:'1rem' }}>
-            {/* ✅ FIX: user is now always null on server, then hydrates consistently */}
             {[['Name', user?.name||''],['Employee ID', user?.emp_id||''],['Department', user?.dept||''],['Email', user?.email||'']].map(([l,v])=>(
-              <div key={l}><div style={{ fontSize:'0.67rem', textTransform:'uppercase', letterSpacing:'0.1em', color:'var(--text-muted)', marginBottom:5 }}>{l}</div>
-              <div style={{ fontSize:'0.85rem', color:'var(--text-main)' }}>{v}</div></div>
+              <div key={l}>
+                <div style={{ fontSize:'0.67rem', textTransform:'uppercase', letterSpacing:'0.1em', color:'var(--text-muted)', marginBottom:5 }}>{l}</div>
+                <div style={{ fontSize:'0.85rem', color:'var(--text-main)' }}>{v}</div>
+              </div>
             ))}
           </div>
         </div>
@@ -65,7 +70,9 @@ export default function RaiseTicket() {
 
       {/* Ticket Form */}
       <div className="card">
-        <div style={{ padding:'1rem 1.4rem', borderBottom:'1px solid var(--border)', background:'var(--bg-mid)' }}><span style={{ fontSize:'0.87rem', fontWeight:600 }}>Ticket Details</span></div>
+        <div style={{ padding:'1rem 1.4rem', borderBottom:'1px solid var(--border)', background:'var(--bg-mid)' }}>
+          <span style={{ fontSize:'0.87rem', fontWeight:600 }}>Ticket Details</span>
+        </div>
         <div style={{ padding:'1.5rem' }}>
           <form onSubmit={handleSubmit}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.2rem' }}>
