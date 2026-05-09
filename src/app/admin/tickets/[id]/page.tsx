@@ -63,8 +63,6 @@ export default function TicketDetail() {
         text: 'Failed to load ticket'
       })
 
-      router.replace('/admin/tickets')
-
     } finally {
 
       setLoading(false)
