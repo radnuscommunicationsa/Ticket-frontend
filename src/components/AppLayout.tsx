@@ -2,9 +2,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import api from '..//lib/api'
+import { Moon, Sun } from 'lucide-react'
+import {
+  LayoutDashboard, Ticket, Monitor, Users, BarChart3,
+  Bell, UserCircle, Plus, LogOut, Tv
+} from 'lucide-react'
+import api from '../lib/api'
 import { getUser, isLoggedIn, clearAuth } from '../lib/auth'
-import { LayoutDashboard, Plus, Monitor, Bell, User, LogOut, Ticket, Users, BarChart3, Settings } from 'lucide-react'
 
 function initials(name?: string) {
   if (!name) return "U";
@@ -20,7 +24,6 @@ export default function AppLayout({ children, role }: LayoutProps) {
   const [user, setUser] = useState<any>(null)
   const [notifCount, setNotifCount] = useState(0)
   const [dark, setDark] = useState(false)
-  
 
   useEffect(() => {
     if (!isLoggedIn()) { router.replace('/login'); return }
@@ -58,25 +61,26 @@ export default function AppLayout({ children, role }: LayoutProps) {
   const empNav = [
     { href: '/employee/dashboard', label: 'My Tickets' },
     { href: '/employee/raise-ticket', label: 'Raise Ticket' },
+    { href: '/employee/my-assets', label: 'My Assets' },
     { href: '/employee/profile', label: 'Profile' },
   ]
   const nav = role === 'admin' ? adminNav : empNav
 
   const adminSide = [
-  { href: '/admin/dashboard', icon: <LayoutDashboard size={16}/>, label: 'Dashboard' },
-  { href: '/admin/tickets', icon: <Ticket size={16}/>, label: 'All Tickets' },
-  { href: '/admin/assets', icon: <Monitor size={16}/>, label: 'Assets' },
-  { href: '/admin/employees', icon: <Users size={16}/>, label: 'Employees' },
-  { href: '/admin/reports', icon: <BarChart3 size={16}/>, label: 'Monthly Report' },
-  { href: '/admin/notifications', icon: <Bell size={16}/>, label: 'Notifications', badge: notifCount },
-]
+    { href: '/admin/dashboard', icon: <LayoutDashboard size={16}/>, label: 'Dashboard' },
+    { href: '/admin/tickets', icon: <Ticket size={16}/>, label: 'All Tickets' },
+    { href: '/admin/assets', icon: <Monitor size={16}/>, label: 'Assets' },
+    { href: '/admin/employees', icon: <Users size={16}/>, label: 'Employees' },
+    { href: '/admin/reports', icon: <BarChart3 size={16}/>, label: 'Monthly Report' },
+    { href: '/admin/notifications', icon: <Bell size={16}/>, label: 'Notifications', badge: notifCount },
+  ]
   const empSide = [
-  { href: '/employee/dashboard', icon: <LayoutDashboard size={16}/>, label: 'My Tickets' },
-  { href: '/employee/raise-ticket', icon: <Plus size={16}/>, label: 'Raise Ticket' },
-  { href: '/employee/my-assets', icon: <Monitor size={16}/>, label: 'My Assets' },
-  { href: '/employee/notifications', icon: <Bell size={16}/>, label: 'Notifications', badge: notifCount },
-  { href: '/employee/profile', icon: <User size={16}/>, label: 'My Profile' },
-]
+    { href: '/employee/dashboard', icon: <LayoutDashboard size={16}/>, label: 'My Tickets' },
+    { href: '/employee/raise-ticket', icon: <Plus size={16}/>, label: 'Raise Ticket' },
+    { href: '/employee/my-assets', icon: <Tv size={16}/>, label: 'My Assets' },
+    { href: '/employee/notifications', icon: <Bell size={16}/>, label: 'Notifications', badge: notifCount },
+    { href: '/employee/profile', icon: <UserCircle size={16}/>, label: 'My Profile' },
+  ]
   const sideLinks = role === 'admin' ? adminSide : empSide
 
   return (
@@ -84,7 +88,9 @@ export default function AppLayout({ children, role }: LayoutProps) {
       {/* Topbar */}
       <div className="topbar" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 2rem', height:60, position:'sticky', top:0, zIndex:100 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10, fontWeight:700, fontSize:'1.1rem', color:'var(--text-main)' }}>
-          <div style={{ width:32, height:32, background:'var(--red-primary)', borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, color:'#fff' }}>🖥</div>
+          <div style={{ width:32, height:32, background:'var(--red-primary)', borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}>
+            <Monitor size={18}/>
+          </div>
           Ticket<span style={{ color:'var(--red-primary)' }}>Desk</span>
           {role === 'admin' && <span style={{ fontSize:'0.7rem', color:'var(--text-muted)', fontWeight:400 }}>ADMIN</span>}
         </div>
@@ -94,13 +100,12 @@ export default function AppLayout({ children, role }: LayoutProps) {
           ))}
         </nav>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          {/* Notif Bell */}
-          <Link href={role === 'admin' ? '/admin/notifications' : '/employee/notifications'} style={{ position:'relative', fontSize:'1.2rem', textDecoration:'none', padding:'4px 8px' }}>
-            🔔{notifCount > 0 && <span style={{ position:'absolute', top:0, right:0, background:'#c62828', color:'#fff', fontSize:'0.55rem', fontWeight:700, padding:'1px 4px', borderRadius:10 }}>{notifCount}</span>}
+          <Link href={role === 'admin' ? '/admin/notifications' : '/employee/notifications'} style={{ position:'relative', textDecoration:'none', padding:'4px 8px', color:'var(--text-main)' }}>
+            <Bell size={20}/>
+            {notifCount > 0 && <span style={{ position:'absolute', top:0, right:0, background:'#c62828', color:'#fff', fontSize:'0.55rem', fontWeight:700, padding:'1px 4px', borderRadius:10 }}>{notifCount}</span>}
           </Link>
-          {/* Dark toggle */}
           <button onClick={toggleDark} style={{ background:'var(--bg-input)', border:'1px solid var(--border)', borderRadius:20, padding:'5px 12px', cursor:'pointer', fontSize:'0.75rem', color:'var(--text-muted)' }}>
-            {dark ? '🌙 Dark' : '☀️ Light'}
+            {dark ? <><Moon size={14}/> Dark</> : <><Sun size={14}/> Light</>}
           </button>
           {user && <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:'0.83rem', color:'var(--text-sub)' }}>
             <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg, var(--red-primary), var(--red-bright))', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.72rem', fontWeight:700, color:'#fff' }}>{initials(user?.name)}</div>
@@ -115,14 +120,14 @@ export default function AppLayout({ children, role }: LayoutProps) {
         <div className="sidebar" style={{ width:220, padding:'1.5rem 0', flexShrink:0 }}>
           {sideLinks.map(s => (
             <Link key={s.href} href={s.href} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 1.2rem', fontSize:'0.84rem', color: path.startsWith(s.href) ? 'var(--red-primary)' : 'var(--text-sub)', borderLeft: path.startsWith(s.href) ? '3px solid var(--red-primary)' : '3px solid transparent', background: path.startsWith(s.href) ? 'var(--red-glow)' : 'transparent', textDecoration:'none' }}>
-              <span style={{ fontSize:14, width:18, textAlign:'center' }}>{s.icon}</span>
+              <span style={{ width:18, display:'flex', alignItems:'center', justifyContent:'center' }}>{s.icon}</span>
               {s.label}
               {s.badge ? <span style={{ marginLeft:'auto', background:'var(--red-primary)', color:'#fff', fontSize:'0.62rem', fontWeight:700, padding:'1px 6px', borderRadius:10 }}>{s.badge}</span> : null}
             </Link>
           ))}
           <div style={{ marginTop:'auto', padding:'1.2rem' }}>
             <button onClick={logout} style={{ display:'flex', alignItems:'center', gap:10, background:'none', border:'none', color:'var(--red-primary)', cursor:'pointer', fontSize:'0.84rem', width:'100%' }}>
-              <span>🚪</span> Logout
+              <LogOut size={16}/> Logout
             </button>
           </div>
         </div>

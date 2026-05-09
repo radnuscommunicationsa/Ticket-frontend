@@ -43,7 +43,9 @@ function BigStatCard({
         gap: 10,
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: hovered ? `0 8px 32px ${color}30` : `0 4px 24px ${color}18`,
+        boxShadow: hovered
+          ? `0 8px 32px ${color}30`
+          : `0 4px 24px ${color}18`,
         transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
         transition: 'transform 0.18s, box-shadow 0.18s',
         cursor: 'default',
@@ -117,7 +119,7 @@ function BigStatCard({
 }
 
 // ─────────────────────────────────────────────────────────────
-// STATUS + PRIORITY COLORS
+// COLORS
 // ─────────────────────────────────────────────────────────────
 const STATUS_COLOR: Record<string, string> = {
   open: '#3B82F6',
@@ -170,6 +172,7 @@ const Badge = ({
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
+  // ✅ SAFE ARRAY STATE
   const [tickets, setTickets] = useState<any[]>([])
 
   const [stats, setStats] = useState({
@@ -181,34 +184,46 @@ export default function AdminDashboard() {
     closed: 0,
   })
 
+  // ─────────────────────────────────────────────────────────────
+  // LOAD DATA
+  // ─────────────────────────────────────────────────────────────
   useEffect(() => {
     fetch('http://localhost:5000/api/tickets')
       .then((res) => res.json())
       .then((data) => {
-        setTickets(data)
+        console.log('API DATA:', data)
+
+        // ✅ FIX
+        const ticketData = Array.isArray(data)
+          ? data
+          : Array.isArray(data.tickets)
+          ? data.tickets
+          : []
+
+        setTickets(ticketData)
 
         setStats({
-          total: data.length,
+          total: ticketData.length,
 
-          open: data.filter(
+          open: ticketData.filter(
             (t: any) => t.status === 'open'
           ).length,
 
-          critical: data.filter(
+          critical: ticketData.filter(
             (t: any) =>
               t.priority === 'critical' &&
               !['resolved', 'closed'].includes(t.status)
           ).length,
 
-          in_progress: data.filter(
+          in_progress: ticketData.filter(
             (t: any) => t.status === 'in-progress'
           ).length,
 
-          resolved: data.filter(
+          resolved: ticketData.filter(
             (t: any) => t.status === 'resolved'
           ).length,
 
-          closed: data.filter(
+          closed: ticketData.filter(
             (t: any) => t.status === 'closed'
           ).length,
         })
@@ -217,17 +232,24 @@ export default function AdminDashboard() {
       })
       .catch((err) => {
         console.error('API Error:', err)
+
+        // ✅ NO CRASH
+        setTickets([])
+
         setLoading(false)
       })
   }, [])
 
-  const recentTickets = [...tickets]
-    .sort(
-      (a: any, b: any) =>
-        new Date(b.created_at).getTime() -
-        new Date(a.created_at).getTime()
-    )
-    .slice(0, 5)
+  // ✅ SAFE SORT
+  const recentTickets = Array.isArray(tickets)
+    ? [...tickets]
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.created_at).getTime() -
+            new Date(a.created_at).getTime()
+        )
+        .slice(0, 5)
+    : []
 
   return (
     <AppLayout role="admin">
@@ -390,58 +412,77 @@ export default function AdminDashboard() {
                 </thead>
 
                 <tbody>
-                  {recentTickets.map((t: any) => (
-                    <tr
-                      key={t._id}
-                      style={{
-                        borderBottom:
-                          '1px solid var(--border-mid)',
-                      }}
-                    >
-                      <td style={{ padding: '10px 1rem' }}>
-                        {t.ticket_no}
-                      </td>
-
-                      <td style={{ padding: '10px 1rem' }}>
-                        {t.subject}
-                      </td>
-
-                      <td style={{ padding: '10px 1rem' }}>
-                        {t.emp_name}
-                      </td>
-
-                      <td style={{ padding: '10px 1rem' }}>
-                        {t.department}
-                      </td>
-
-                      <td style={{ padding: '10px 1rem' }}>
-                        <Badge
-                          text={t.priority}
-                          color={
-                            PRIORITY_COLOR[t.priority] ??
-                            '#64748B'
-                          }
-                        />
-                      </td>
-
-                      <td style={{ padding: '10px 1rem' }}>
-                        <Badge
-                          text={
-                            STATUS_LABEL[t.status] ??
-                            t.status
-                          }
-                          color={
-                            STATUS_COLOR[t.status] ??
-                            '#64748B'
-                          }
-                        />
-                      </td>
-
-                      <td style={{ padding: '10px 1rem' }}>
-                        {t.created_at}
+                  {recentTickets.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        style={{
+                          padding: '2rem',
+                          textAlign: 'center',
+                          color: 'var(--text-muted)',
+                        }}
+                      >
+                        No tickets found
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    recentTickets.map((t: any) => (
+                      <tr
+                        key={t._id}
+                        style={{
+                          borderBottom:
+                            '1px solid var(--border-mid)',
+                        }}
+                      >
+                        <td style={{ padding: '10px 1rem' }}>
+                          {t.ticket_no}
+                        </td>
+
+                        <td style={{ padding: '10px 1rem' }}>
+                          {t.subject}
+                        </td>
+
+                        <td style={{ padding: '10px 1rem' }}>
+                          {t.emp_name || 'Unknown'}
+                        </td>
+
+                        <td style={{ padding: '10px 1rem' }}>
+                          {t.department || 'N/A'}
+                        </td>
+
+                        <td style={{ padding: '10px 1rem' }}>
+                          <Badge
+                            text={t.priority}
+                            color={
+                              PRIORITY_COLOR[t.priority] ??
+                              '#64748B'
+                            }
+                          />
+                        </td>
+
+                        <td style={{ padding: '10px 1rem' }}>
+                          <Badge
+                            text={
+                              STATUS_LABEL[t.status] ??
+                              t.status
+                            }
+                            color={
+                              STATUS_COLOR[t.status] ??
+                              '#64748B'
+                            }
+                          />
+                        </td>
+
+                        <td style={{ padding: '10px 1rem' }}>
+                          {t.created_at
+                            ? new Date(
+                                t.created_at
+                              ).toLocaleString()
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
