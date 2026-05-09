@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader } from '@/components/ui'
+import api from '@/lib/api'
 import {
   Ticket,
   MailOpen,
@@ -171,8 +172,6 @@ const Badge = ({
 // ─────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
-
-  // ✅ SAFE ARRAY STATE
   const [tickets, setTickets] = useState<any[]>([])
 
   const [stats, setStats] = useState({
@@ -188,54 +187,25 @@ export default function AdminDashboard() {
   // LOAD DATA
   // ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetch('http://localhost:5000/api/tickets')
-      .then((res) => res.json())
-      .then((data) => {
-        console.log('API DATA:', data)
-
-        // ✅ FIX
-        const ticketData = Array.isArray(data)
-          ? data
-          : Array.isArray(data.tickets)
-          ? data.tickets
-          : []
-
-        setTickets(ticketData)
+    api.get('/tickets/stats')
+      .then((res) => {
+        const data = res.data
 
         setStats({
-          total: ticketData.length,
-
-          open: ticketData.filter(
-            (t: any) => t.status === 'open'
-          ).length,
-
-          critical: ticketData.filter(
-            (t: any) =>
-              t.priority === 'critical' &&
-              !['resolved', 'closed'].includes(t.status)
-          ).length,
-
-          in_progress: ticketData.filter(
-            (t: any) => t.status === 'in-progress'
-          ).length,
-
-          resolved: ticketData.filter(
-            (t: any) => t.status === 'resolved'
-          ).length,
-
-          closed: ticketData.filter(
-            (t: any) => t.status === 'closed'
-          ).length,
+          total:       data.total       ?? 0,
+          open:        data.open        ?? 0,
+          critical:    data.critical    ?? 0,
+          in_progress: data.in_progress ?? 0,
+          resolved:    data.resolved    ?? 0,
+          closed:      data.closed      ?? 0,
         })
 
+        setTickets(data.recent_tickets ?? [])
         setLoading(false)
       })
       .catch((err) => {
         console.error('API Error:', err)
-
-        // ✅ NO CRASH
         setTickets([])
-
         setLoading(false)
       })
   }, [])
@@ -430,8 +400,7 @@ export default function AdminDashboard() {
                       <tr
                         key={t._id}
                         style={{
-                          borderBottom:
-                            '1px solid var(--border-mid)',
+                          borderBottom: '1px solid var(--border-mid)',
                         }}
                       >
                         <td style={{ padding: '10px 1rem' }}>
@@ -453,31 +422,20 @@ export default function AdminDashboard() {
                         <td style={{ padding: '10px 1rem' }}>
                           <Badge
                             text={t.priority}
-                            color={
-                              PRIORITY_COLOR[t.priority] ??
-                              '#64748B'
-                            }
+                            color={PRIORITY_COLOR[t.priority] ?? '#64748B'}
                           />
                         </td>
 
                         <td style={{ padding: '10px 1rem' }}>
                           <Badge
-                            text={
-                              STATUS_LABEL[t.status] ??
-                              t.status
-                            }
-                            color={
-                              STATUS_COLOR[t.status] ??
-                              '#64748B'
-                            }
+                            text={STATUS_LABEL[t.status] ?? t.status}
+                            color={STATUS_COLOR[t.status] ?? '#64748B'}
                           />
                         </td>
 
                         <td style={{ padding: '10px 1rem' }}>
                           {t.created_at
-                            ? new Date(
-                                t.created_at
-                              ).toLocaleString()
+                            ? new Date(t.created_at).toLocaleString()
                             : '-'}
                         </td>
                       </tr>
@@ -495,7 +453,7 @@ export default function AdminDashboard() {
                 color: 'var(--text-muted)',
               }}
             >
-              Showing {tickets.length} tickets
+              Showing {recentTickets.length} recent tickets
             </div>
           </div>
         </>
