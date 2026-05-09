@@ -19,14 +19,16 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      Cookies.remove('td_token');
-      Cookies.remove('td_user');
-
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+      const url = err.config?.url || '';
+      // ✅ Only logout on auth routes, not on data routes
+      if (url.includes('/auth/') || err.response?.data?.error === 'No token') {
+        Cookies.remove('td_token');
+        Cookies.remove('td_user');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       }
     }
-
     return Promise.reject(err);
   }
 );
