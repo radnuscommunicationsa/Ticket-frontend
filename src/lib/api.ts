@@ -3,15 +3,14 @@ import Cookies from 'js-cookie';
 
 const api = axios.create({
   baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api`,
+  timeout: 15000, // ✅ 15 second timeout
 });
 
 api.interceptors.request.use((config) => {
   const token = Cookies.get('td_token');
-
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-
   return config;
 });
 
@@ -20,7 +19,6 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401) {
       const url = err.config?.url || '';
-      // ✅ Only logout on auth routes, not on data routes
       if (url.includes('/auth/') || err.response?.data?.error === 'No token') {
         Cookies.remove('td_token');
         Cookies.remove('td_user');
