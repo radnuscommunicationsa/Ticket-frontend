@@ -90,9 +90,10 @@ export default function TicketDetail() {
 
       setSaving(true)
 
-      await api.patch(`/tickets/${id}`, {
-        status
-      })
+     await api.patch(`/tickets/${id}`, {
+  status,
+  note
+})
 
       setMsg({
         type: 'success',
@@ -100,6 +101,7 @@ export default function TicketDetail() {
       })
 
       loadTicket()
+      setNote('')
 
     } catch (err: any) {
 
@@ -342,52 +344,50 @@ export default function TicketDetail() {
           {/* ATTACHMENT */}
 
           {att && (
+  <div className="card" style={{ marginBottom: '1.5rem' }}>
+    <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
+      <strong>Attachment</strong>
+    </div>
+    <div style={{ padding: '1rem' }}>
+      {isImg ? (
+        <img src={attUrl!} alt="attachment" style={{ width: '100%', borderRadius: 8 }} />
+      ) : (
+        <a href={attUrl!} target="_blank" style={{ color: 'red' }}>Download File</a>
+      )}
+    </div>
+  </div>
+)}
 
-            <div
-              className="card"
-              style={{ marginBottom: '1.5rem' }}
-            >
-
-              <div
-                style={{
-                  padding: '1rem',
-                  borderBottom:
-                    '1px solid var(--border)'
-                }}
-              >
-                <strong>Attachment</strong>
-              </div>
-
-              <div style={{ padding: '1rem' }}>
-
-                {isImg ? (
-
-                  <img
-                    src={attUrl!}
-                    alt="attachment"
-                    style={{
-                      width: '100%',
-                      borderRadius: 8
-                    }}
-                  />
-
-                ) : (
-
-                  <a
-                    href={attUrl!}
-                    target="_blank"
-                    style={{
-                      color: 'red'
-                    }}
-                  >
-                    Download File
-                  </a>
-                )}
-
-              </div>
-
-            </div>
-          )}
+{/* ACTIVITY / UPDATES - ADD THIS BLOCK */}
+<div className="card">
+  <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
+    <strong>🔔 Activity / Updates</strong>
+  </div>
+  <div style={{ padding: '1rem' }}>
+    {logs.length > 0 ? (
+      logs.map((log: any, i: number) => (
+        <div key={i} style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--bg-mid)', borderRadius: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <strong style={{ color: 'var(--red-primary)', textTransform: 'uppercase', fontSize: '0.75rem' }}>
+              {log.status}
+            </strong>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+              {new Date(log.date || log.createdAt).toLocaleString()}
+            </span>
+          </div>
+          <div style={{ color: 'var(--text-main)', fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
+            {log.note}
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 4 }}>
+            by {log.by || 'IT Support'}
+          </div>
+        </div>
+      ))
+    ) : (
+      <p style={{ color: 'var(--text-muted)' }}>No updates yet. The IT team will update this ticket shortly.</p>
+    )}
+  </div>
+</div>
 
         </div>
 
