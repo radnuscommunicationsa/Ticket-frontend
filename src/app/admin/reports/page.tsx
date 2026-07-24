@@ -4,6 +4,12 @@ import { useEffect, useState, useCallback } from 'react'
 import AppLayout from '@/components/AppLayout'
 import api from '@/lib/api'
 
+// ── Install these packages first ──────────────────────────────────
+// npm install jspdf jspdf-autotable xlsx
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MONTHS: Record<number, string> = {
@@ -43,6 +49,118 @@ interface ReportData {
   tkt?: TicketStats
   empData?: EmployeeReport[]
   assetData?: AssetStats
+}
+
+// ─── Download Functions ───────────────────────────────────────────────────────
+
+function downloadPDF(data: ReportData, month: number, year: number) {
+  const doc = new jsPDF()
+  const title = `Monthly Report - ${MONTHS[month]} ${year}`
+
+  // Title
+  doc.setFontSize(18)
+  doc.setTextColor(198, 40, 40)
+  doc.text(title, 14, 20)
+
+  doc.setFontSize(10)
+  doc.setTextColor(100)
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28)
+
+  // Ticket Summary
+  doc.setFontSize(13)
+  doc.setTextColor(30)
+  doc.text('Ticket Summary', 14, 42)
+
+  autoTable(doc, {
+    startY: 46,
+    head: [['Total', 'Open', 'In Progress', 'Resolved', 'Closed']],
+    body: [[
+      data.tkt?.total    ?? 0,
+      data.tkt?.open_c   ?? 0,
+      data.tkt?.inprog   ?? 0,
+      data.tkt?.resolved ?? 0,
+      data.tkt?.closed   ?? 0,
+    ]],
+    headStyles: { fillColor: [198, 40, 40] },
+  })
+
+  // Employee Activity
+  if (data.empData?.length) {
+    const afterTicket = (doc as any).lastAutoTable.finalY + 10
+    doc.setFontSize(13)
+    doc.setTextColor(30)
+    doc.text('Employee Activity', 14, afterTicket)
+
+    autoTable(doc, {
+      startY: afterTicket + 4,
+      head: [['Employee', 'Department', 'Total', 'Open', 'Resolved']],
+      body: data.empData.map(e => [
+        e.name, e.department ?? '—', e.total, e.open ?? '—', e.resolved ?? '—',
+      ]),
+      headStyles: { fillColor: [21, 101, 192] },
+    })
+  }
+
+  // Asset Overview
+  if (data.assetData) {
+    const afterEmp = (doc as any).lastAutoTable.finalY + 10
+    doc.setFontSize(13)
+    doc.setTextColor(30)
+    doc.text('Asset Overview', 14, afterEmp)
+
+    autoTable(doc, {
+      startY: afterEmp + 4,
+      head: [['Total Assets', 'Available', 'Assigned']],
+      body: [[
+        data.assetData.total,
+        data.assetData.available,
+        data.assetData.assigned,
+      ]],
+      headStyles: { fillColor: [46, 125, 50] },
+    })
+  }
+
+  doc.save(`report-${MONTHS[month]}-${year}.pdf`)
+}
+
+function downloadExcel(data: ReportData, month: number, year: number) {
+  const wb = XLSX.utils.book_new()
+
+  // Sheet 1 - Ticket Summary
+  const ticketSheet = XLSX.utils.json_to_sheet([{
+    Total:           data.tkt?.total    ?? 0,
+    Open:            data.tkt?.open_c   ?? 0,
+    'In Progress':   data.tkt?.inprog   ?? 0,
+    Resolved:        data.tkt?.resolved ?? 0,
+    Closed:          data.tkt?.closed   ?? 0,
+  }])
+  XLSX.utils.book_append_sheet(wb, ticketSheet, 'Ticket Summary')
+
+  // Sheet 2 - Employee Activity
+  if (data.empData?.length) {
+    const empSheet = XLSX.utils.json_to_sheet(
+      data.empData.map(e => ({
+        Employee:   e.name,
+        Department: e.department ?? '—',
+        Total:      e.total,
+        Open:       e.open    ?? 0,
+        Resolved:   e.resolved ?? 0,
+      }))
+    )
+    XLSX.utils.book_append_sheet(wb, empSheet, 'Employee Activity')
+  }
+
+  // Sheet 3 - Asset Overview
+  if (data.assetData) {
+    const assetSheet = XLSX.utils.json_to_sheet([{
+      'Total Assets': data.assetData.total,
+      Available:      data.assetData.available,
+      Assigned:       data.assetData.assigned,
+    }])
+    XLSX.utils.book_append_sheet(wb, assetSheet, 'Asset Overview')
+  }
+
+  XLSX.writeFile(wb, `report-${MONTHS[month]}-${year}.xlsx`)
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -403,11 +521,52 @@ export default function AdminReports() {
             {loading ? 'Loading…' : 'Load Report'}
           </button>
 
-          {loaded && !loading && (
-            <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Showing:{' '}
-              <strong style={{ color: 'var(--text-main)' }}>{MONTHS[month]} {year}</strong>
-            </span>
+          {/* ── Showing label + Download buttons (appear after data loads) ── */}
+          {loaded && !loading && data && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Showing:{' '}
+                <strong style={{ color: 'var(--text-main)' }}>{MONTHS[month]} {year}</strong>
+              </span>
+
+              {/* PDF Download */}
+              <button
+                onClick={() => downloadPDF(data, month, year)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  border: '1px solid rgba(198,40,40,0.3)',
+                  background: 'rgba(198,40,40,0.08)',
+                  color: '#C62828',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  cursor: 'pointer',
+                }}
+              >
+                ⬇ PDF
+              </button>
+
+              {/* Excel Download */}
+              <button
+                onClick={() => downloadExcel(data, month, year)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  border: '1px solid rgba(46,125,50,0.3)',
+                  background: 'rgba(46,125,50,0.08)',
+                  color: '#2E7D32',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  cursor: 'pointer',
+                }}
+              >
+                ⬇ Excel
+              </button>
+            </div>
           )}
         </div>
 

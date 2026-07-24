@@ -51,7 +51,7 @@ setAdmins(data?.admins ?? [])
         <FG label="Full Name *"><input required style={inp} value={d.name} onChange={e=>setD({...d,name:e.target.value})} placeholder="John Smith"/></FG>
         <FG label="Employee ID *"><input required style={inp} value={d.emp_id} onChange={e=>setD({...d,emp_id:e.target.value})} placeholder="EMP-0120"/></FG>
       </div>
-      <FG label="Email *"><input required type="email" style={inp} value={d.email} onChange={e=>setD({...d,email:e.target.value})} placeholder="john@company.com"/></FG>
+      <FG label="Email"><input type="email" style={inp} value={d.email} onChange={e=>setD({...d,email:e.target.value})} placeholder="john@company.com (optional)"/></FG>
       <FG label="Password *"><input required type="password" style={inp} value={d.password} onChange={e=>setD({...d,password:e.target.value})} placeholder="Set initial password"/></FG>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
         <FG label="Department"><select style={inp} value={d.department} onChange={e=>setD({...d,department:e.target.value})}><option value="">— Select —</option>{DEPTS.map(dept=><option key={dept}>{dept}</option>)}</select></FG>
