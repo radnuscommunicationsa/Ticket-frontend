@@ -4,7 +4,8 @@ import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert, Modal, DeptBadge } from '@/components/ui'
 import api from '@/lib/api'
 
-const DEPTS = ['Loan','Accounts','Faculty','Web Development','Mobile Development','Digital Marketing','Sales','Design','Admission','HR','Telecalling','IT Software Support','Stock','Distribution']
+
+const DEPTS = ['Loan','Customer Support','General Manager','Accounts','Faculty','Web Development','Digital Marketing','Sales','Design','Admission','HR','Telecalling','Stock','Distribution','Technical Service Engineer','Android Development','System Administrator','Software Support']
 function avatarColor(n:string){const c=['#1565c0','#6a1b9a','#00695c','#c62828','#e65100','#2e7d32','#37474f','#4527a0'];let h=0;for(const ch of n)h+=ch.charCodeAt(0);return c[h%c.length]}
 function initials(n?:string){if(!n)return 'NA';const p=n.split(' ');return((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase()}
 
@@ -15,16 +16,23 @@ export default function AdminEmployees() {
   const [showAdd,setShowAdd]=useState(false)
   const [editEmp,setEditEmp]=useState<any>(null)
   const [editAdmin,setEditAdmin]=useState<any>(null)
+  const [search,setSearch]=useState('')
 
   const load=async()=>{
     try{
       const { data } = await api.get('/employees');
-setEmployees(data?.employees ?? []);
-setAdmins(data?.admins ?? [])
+      setEmployees(data?.employees ?? []);
+      setAdmins(data?.admins ?? [])
     }catch(err:any){setMsg({type:'error',text:err.response?.data?.error||'Failed to load'})}
   }
   useEffect(()=>{load()},[])
 
+  const filteredEmployees = employees.filter((e:any) => 
+    e.name?.toLowerCase().includes(search.toLowerCase()) ||
+    e.emp_id?.toLowerCase().includes(search.toLowerCase()) ||
+    e.department?.toLowerCase().includes(search.toLowerCase())
+  )
+  
   const handleDelete=async(id:string)=>{
     if(!confirm('Delete this employee and all their tickets?'))return
     try{await api.delete(`/employees/${id}`);setMsg({type:'success',text:'Employee deleted.'});load()}
@@ -106,20 +114,27 @@ setAdmins(data?.admins ?? [])
       <PageHeader breadcrumb="EMPLOYEES" title="Employee Management" subtitle="Manage your team members and their access"/>
       {msg&&<Alert type={msg.type} message={msg.text}/>}
 
-      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'1rem'}}>
-        <button onClick={()=>setShowAdd(true)} style={{padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>➕ Add New Employee</button>
-      </div>
+     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem',gap:'1rem',flexWrap:'wrap'}}>
+  <input
+    type="text"
+    placeholder="🔍 Search by name, ID or department..."
+    value={search}
+    onChange={e=>setSearch(e.target.value)}
+    style={{padding:'8px 14px',borderRadius:5,border:'1px solid var(--border)',background:'var(--bg-input)',color:'var(--text-main)',fontSize:'0.85rem',minWidth:'280px',flex:'1',maxWidth:'400px'}}
+  />
+  <button onClick={()=>setShowAdd(true)} style={{padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>➕ Add New Employee</button>
+</div>
 
       {/* Employee Table */}
       <div className="card" style={{marginBottom:'1.5rem'}}>
-        <div style={{padding:'1rem 1.4rem',borderBottom:'1px solid var(--border)',background:'var(--bg-mid)'}}><span style={{fontSize:'0.87rem',fontWeight:600}}>All Employees ({employees.length})</span></div>
+        <div style={{padding:'1rem 1.4rem',borderBottom:'1px solid var(--border)',background:'var(--bg-mid)'}}><span style={{fontSize:'0.87rem',fontWeight:600}}>All Employees ({filteredEmployees.length})</span></div>
         <div style={{overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead><tr><TH c="Employee"/><TH c="ID"/><TH c="Department"/><TH c="Tickets"/><TH c="Open"/><TH c="Actions"/></tr></thead>
             <tbody>
-              {employees.length===0
-                ?<tr><td colSpan={7} style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>No employees yet.</td></tr>
-                :employees.map((e:any)=>(
+              {filteredEmployees.length===0
+  ?<tr><td colSpan={6} style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>No employees found.</td></tr>
+  :filteredEmployees.map((e:any)=>(
                 <tr key={e._id||e.id} style={{borderBottom:'1px solid var(--border-mid)'}}>
                   <td style={{padding:'12px 1.4rem'}}>
                     <div style={{display:'flex',alignItems:'center',gap:10}}>
@@ -153,7 +168,7 @@ setAdmins(data?.admins ?? [])
             <thead><tr><TH c="Admin"/><TH c="ID"/><TH c="Phone"/><TH c="Actions"/></tr></thead>
             <tbody>
               {admins.length===0
-                ?<tr><td colSpan={5} style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>No admins found.</td></tr>
+                ?<tr><td colSpan={4} style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>No admins found.</td></tr>
                 :admins.map((a:any)=>(
                 <tr key={a._id||a.id} style={{borderBottom:'1px solid var(--border-mid)'}}>
                   <td style={{padding:'12px 1.4rem'}}>
