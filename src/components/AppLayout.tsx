@@ -20,7 +20,7 @@ export default function AppLayout({ children, role }: LayoutProps) {
   const [user, setUser] = useState<any>(null)
   const [notifCount, setNotifCount] = useState(0)
   const [dark, setDark] = useState(false)
-  const [sideOpen, setSideOpen] = useState(false)
+  const [sideOpen, setSideOpen] = useState(true)
 
   // ✅ Edit Profile Modal state
   const [showEdit, setShowEdit] = useState(false)
@@ -39,12 +39,11 @@ export default function AppLayout({ children, role }: LayoutProps) {
     fetchNotifs()
   }, [router, role])
 
-  useEffect(() => { setSideOpen(false) }, [path])
-
+  
   const fetchNotifs = async () => {
     try {
       const { data } = await api.get('/notifications')
-      setNotifCount(data.unread || 0)
+      setNotifCount(data.unread_count || 0) 
     } catch {}
   }
 
@@ -116,13 +115,7 @@ export default function AppLayout({ children, role }: LayoutProps) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
 
-      {/* Mobile Overlay */}
-      {sideOpen && (
-        <div onClick={() => setSideOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 150 }} />
-      )}
-
-      {/* ✅ Edit Profile Modal */}
+          {/* ✅ Edit Profile Modal */}
       {showEdit && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div style={{ background: 'var(--bg-card)', borderRadius: 10, border: '1px solid var(--border)', width: '100%', maxWidth: 420, boxShadow: 'var(--shadow)' }}>
@@ -254,9 +247,9 @@ export default function AppLayout({ children, role }: LayoutProps) {
         </div>
 
         {/* Main Content */}
-        <main style={{ flex: 1, padding: '1.2rem', overflowY: 'auto', background: 'var(--bg)', width: '100%' }}>
-          {children}
-        </main>
+    <main style={{ flex: 1, padding: '1.2rem', overflowY: 'auto', background: 'var(--bg)', width: '100%', marginLeft: sideOpen ? 230 : 0, transition: 'margin-left 0.25s ease' }}>
+  {children}
+</main>
       </div>
     </div>
   )

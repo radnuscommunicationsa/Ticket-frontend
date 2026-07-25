@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader } from '@/components/ui'
@@ -23,12 +24,14 @@ function BigStatCard({
   value,
   sub,
   color,
+  onClick,
 }: {
   icon: any
   label: string
   value: number
   sub: string
   color: string
+  onClick?: () => void
 }) {
   const [hovered, setHovered] = useState(false)
 
@@ -49,10 +52,11 @@ function BigStatCard({
           : `0 4px 24px ${color}18`,
         transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
         transition: 'transform 0.18s, box-shadow 0.18s',
-        cursor: 'default',
+        cursor: 'pointer',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
     >
       <div
         style={{
@@ -171,6 +175,7 @@ const Badge = ({
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [tickets, setTickets] = useState<any[]>([])
 
@@ -257,6 +262,7 @@ export default function AdminDashboard() {
               value={stats.total}
               sub="All time"
               color="#c62828"
+              onClick={() => router.push('/admin/tickets')}
             />
 
             <BigStatCard
@@ -265,6 +271,7 @@ export default function AdminDashboard() {
               value={stats.open}
               sub="Awaiting assignment"
               color="#e65100"
+              onClick={() => router.push('/admin/tickets?status=open')}
             />
 
             <BigStatCard
@@ -273,6 +280,7 @@ export default function AdminDashboard() {
               value={stats.critical}
               sub="Needs immediate action"
               color="#b71c1c"
+              onClick={() => router.push('/admin/tickets?status=open&priority=critical')}
             />
 
             <BigStatCard
@@ -281,6 +289,7 @@ export default function AdminDashboard() {
               value={stats.in_progress}
               sub="Being worked on"
               color="#1565c0"
+              onClick={() => router.push('/admin/tickets?status=in-progress')}
             />
 
             <BigStatCard
@@ -289,6 +298,7 @@ export default function AdminDashboard() {
               value={stats.resolved}
               sub="Successfully closed"
               color="#2e7d32"
+              onClick={() => router.push('/admin/tickets?status=resolved')}
             />
 
             <BigStatCard
@@ -297,7 +307,9 @@ export default function AdminDashboard() {
               value={stats.closed}
               sub="Archived"
               color="#37474f"
+              onClick={() => router.push('/admin/tickets?status=closed')}
             />
+            
           </div>
 
           {/* RECENT TICKETS */}
