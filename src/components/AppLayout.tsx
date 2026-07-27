@@ -37,6 +37,10 @@ export default function AppLayout({ children, role }: LayoutProps) {
     setDark(savedDark)
     if (savedDark) document.documentElement.classList.add('dark')
     fetchNotifs()
+
+    // ✅ Every 15 seconds, check for new notifications
+    const interval = setInterval(fetchNotifs, 15000)
+    return () => clearInterval(interval)
   }, [router, role])
 
   
