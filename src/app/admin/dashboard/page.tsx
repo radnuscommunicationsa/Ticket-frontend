@@ -37,21 +37,21 @@ function BigStatCard({
 
   return (
     <div
-      style={{
-        background: 'var(--bg-card)',
-        border: `1.5px solid ${color}33`,
-        borderRadius: 16,
-        padding: '1.6rem 1.4rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
+  style={{
+    background: 'var(--bg-card)',
+    border: `1.5px solid ${color}33`,
+    borderRadius: 12,
+    padding: '1.1rem 1.1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
         position: 'relative',
         overflow: 'hidden',
         boxShadow: hovered
           ? `0 8px 32px ${color}30`
           : `0 4px 24px ${color}18`,
-        transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
-        transition: 'transform 0.18s, box-shadow 0.18s',
+        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+        transition: 'transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s',
         cursor: 'pointer',
       }}
       onMouseEnter={() => setHovered(true)}
@@ -69,65 +69,74 @@ function BigStatCard({
           background: `${color}12`,
         }}
       />
-
       <div
         style={{
-          width: 54,
-          height: 54,
-          borderRadius: 14,
-          background: `${color}18`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          position: 'absolute',
+          bottom: -30,
+          left: -30,
+          width: 70,
+          height: 70,
+          borderRadius: '50%',
+          background: `${color}08`,
         }}
-      >
-        <Icon size={30} color={color} strokeWidth={1.8} />
-      </div>
+      />
 
       <div
-        style={{
-          fontSize: '2.4rem',
-          fontWeight: 800,
-          color,
-          lineHeight: 1,
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {value ?? 0}
-      </div>
+  style={{
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    background: `${color}18`,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }}
+>
+  <Icon size={20} color={color} strokeWidth={1.8} />
+</div>
 
-      <div>
-        <div
-          style={{
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            color: 'var(--text-main)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-          }}
-        >
-          {label}
-        </div>
+      <div
+  style={{
+    fontSize: '1.6rem',
+    fontWeight: 800,
+    color,
+    lineHeight: 1,
+    fontVariantNumeric: 'tabular-nums',
+  }}
+>
+  {value ?? 0}
+</div>
 
-        <div
-          style={{
-            fontSize: '0.7rem',
-            color: 'var(--text-muted)',
-            marginTop: 2,
-          }}
-        >
-          {sub}
-        </div>
-      </div>
+      <div
+  style={{
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    color: 'var(--text-main)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  }}
+>
+  {label}
+</div>
+
+<div
+  style={{
+    fontSize: '0.66rem',
+    color: 'var(--text-muted)',
+    marginTop: 1,
+  }}
+>
+  {sub}
+</div>
     </div>
   )
 }
 
 // ─────────────────────────────────────────────────────────────
-// COLORS
+// COLORS — Purple theme palette
 // ─────────────────────────────────────────────────────────────
 const STATUS_COLOR: Record<string, string> = {
-  open: '#3B82F6',
+  open: '#7c3aed',
   'in-progress': '#F59E0B',
   resolved: '#10B981',
   closed: '#64748B',
@@ -188,14 +197,10 @@ export default function AdminDashboard() {
     closed: 0,
   })
 
-  // ─────────────────────────────────────────────────────────────
-  // LOAD DATA
-  // ─────────────────────────────────────────────────────────────
   useEffect(() => {
     api.get('/tickets/stats')
       .then((res) => {
         const data = res.data
-
         setStats({
           total:       data.total       ?? 0,
           open:        data.open        ?? 0,
@@ -204,7 +209,6 @@ export default function AdminDashboard() {
           resolved:    data.resolved    ?? 0,
           closed:      data.closed      ?? 0,
         })
-
         setTickets(data.recent_tickets ?? [])
         setLoading(false)
       })
@@ -215,7 +219,6 @@ export default function AdminDashboard() {
       })
   }, [])
 
-  // ✅ SAFE SORT
   const recentTickets = Array.isArray(tickets)
     ? [...tickets]
         .sort(
@@ -247,21 +250,21 @@ export default function AdminDashboard() {
         </div>
       ) : (
         <>
-          {/* STAT CARDS */}
+          {/* STAT CARDS — purple family palette, each card a distinct shade */}
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '1.1rem',
-              marginBottom: '1.8rem',
-            }}
-          >
+  style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '0.9rem',
+    marginBottom: '1.4rem',
+  }}
+>
             <BigStatCard
               icon={Ticket}
               label="Total Tickets"
               value={stats.total}
               sub="All time"
-              color="#c62828"
+              color="#7c3aed"
               onClick={() => router.push('/admin/tickets')}
             />
 
@@ -270,7 +273,7 @@ export default function AdminDashboard() {
               label="Open"
               value={stats.open}
               sub="Awaiting assignment"
-              color="#e65100"
+              color="#a855f7"
               onClick={() => router.push('/admin/tickets?status=open')}
             />
 
@@ -279,7 +282,7 @@ export default function AdminDashboard() {
               label="Critical Open"
               value={stats.critical}
               sub="Needs immediate action"
-              color="#b71c1c"
+              color="#e11d48"
               onClick={() => router.push('/admin/tickets?status=open&priority=critical')}
             />
 
@@ -288,7 +291,7 @@ export default function AdminDashboard() {
               label="In Progress"
               value={stats.in_progress}
               sub="Being worked on"
-              color="#1565c0"
+              color="#f59e0b"
               onClick={() => router.push('/admin/tickets?status=in-progress')}
             />
 
@@ -297,7 +300,7 @@ export default function AdminDashboard() {
               label="Resolved"
               value={stats.resolved}
               sub="Successfully closed"
-              color="#2e7d32"
+              color="#10b981"
               onClick={() => router.push('/admin/tickets?status=resolved')}
             />
 
@@ -306,10 +309,9 @@ export default function AdminDashboard() {
               label="Closed"
               value={stats.closed}
               sub="Archived"
-              color="#37474f"
+              color="#6366f1"
               onClick={() => router.push('/admin/tickets?status=closed')}
             />
-            
           </div>
 
           {/* RECENT TICKETS */}
@@ -345,7 +347,7 @@ export default function AdminDashboard() {
                 href="/admin/tickets"
                 style={{
                   fontSize: '0.78rem',
-                  color: 'var(--primary)',
+                  color: 'var(--red-primary)',
                   fontWeight: 600,
                   textDecoration: 'none',
                 }}
@@ -384,7 +386,7 @@ export default function AdminDashboard() {
                           color: 'var(--text-muted)',
                           textTransform: 'uppercase',
                           borderBottom: '1px solid var(--border)',
-                          background: 'var(--bg)',
+                          background: 'var(--bg-mid)',
                         }}
                       >
                         {h}
@@ -415,7 +417,7 @@ export default function AdminDashboard() {
                           borderBottom: '1px solid var(--border-mid)',
                         }}
                       >
-                        <td style={{ padding: '10px 1rem' }}>
+                        <td style={{ padding: '10px 1rem', fontFamily: 'IBM Plex Mono', color: 'var(--red-primary)', fontWeight: 600 }}>
                           {t.ticket_no}
                         </td>
 
@@ -445,7 +447,7 @@ export default function AdminDashboard() {
                           />
                         </td>
 
-                        <td style={{ padding: '10px 1rem' }}>
+                        <td style={{ padding: '10px 1rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
                           {t.created_at
                             ? new Date(t.created_at).toLocaleString()
                             : '-'}

@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import AppLayout from '@/components/AppLayout'
 import api from '@/lib/api'
+import { Ticket, Inbox, Settings, CheckCircle2, Lock, Users, Package, Link2, Download, AlertTriangle, BarChart3 } from 'lucide-react'
+
 
 // ── Install these packages first ──────────────────────────────────
 // npm install jspdf jspdf-autotable xlsx
@@ -170,7 +172,7 @@ interface StatCardProps {
   value: number
   color: string
   accentColor: string
-  icon: string
+  icon: React.ReactNode
 }
 
 function StatCard({ label, value, color, accentColor, icon }: StatCardProps) {
@@ -203,7 +205,7 @@ function StatCard({ label, value, color, accentColor, icon }: StatCardProps) {
         }}>
           {label}
         </span>
-        <span style={{ fontSize: '1.1rem', opacity: 0.75 }}>{icon}</span>
+        <span style={{ display: 'flex', opacity: 0.75, color: accentColor }}>{icon}</span>
       </div>
       <div style={{
         fontSize: '2.4rem',
@@ -422,17 +424,17 @@ export default function AdminReports() {
   }
 
   const ticketCards: StatCardProps[] = [
-    { label: 'Total',       value: data?.tkt?.total    ?? 0, color: '#C62828', accentColor: '#C62828', icon: '🎫' },
-    { label: 'Open',        value: data?.tkt?.open_c   ?? 0, color: '#E65100', accentColor: '#E65100', icon: '📬' },
-    { label: 'In Progress', value: data?.tkt?.inprog   ?? 0, color: '#1565C0', accentColor: '#1565C0', icon: '⚙️' },
-    { label: 'Resolved',    value: data?.tkt?.resolved ?? 0, color: '#2E7D32', accentColor: '#2E7D32', icon: '✅' },
-    { label: 'Closed',      value: data?.tkt?.closed   ?? 0, color: '#546E7A', accentColor: '#546E7A', icon: '🔒' },
+    { label: 'Total',       value: data?.tkt?.total    ?? 0, color: '#C62828', accentColor: '#C62828', icon: <Ticket size={18}/> },
+    { label: 'Open',        value: data?.tkt?.open_c   ?? 0, color: '#E65100', accentColor: '#E65100', icon: <Inbox size={18}/> },
+    { label: 'In Progress', value: data?.tkt?.inprog   ?? 0, color: '#1565C0', accentColor: '#1565C0', icon: <Settings size={18}/> },
+    { label: 'Resolved',    value: data?.tkt?.resolved ?? 0, color: '#2E7D32', accentColor: '#2E7D32', icon: <CheckCircle2 size={18}/> },
+    { label: 'Closed',      value: data?.tkt?.closed   ?? 0, color: '#546E7A', accentColor: '#546E7A', icon: <Lock size={18}/> },
   ]
 
   const assetCards: StatCardProps[] = [
-    { label: 'Total Assets', value: data?.assetData?.total     ?? 0, color: '#C62828', accentColor: '#C62828', icon: '📦' },
-    { label: 'Available',    value: data?.assetData?.available ?? 0, color: '#2E7D32', accentColor: '#2E7D32', icon: '✅' },
-    { label: 'Assigned',     value: data?.assetData?.assigned  ?? 0, color: '#1565C0', accentColor: '#1565C0', icon: '🔗' },
+    { label: 'Total Assets', value: data?.assetData?.total     ?? 0, color: '#C62828', accentColor: '#C62828', icon: <Package size={18}/> },
+    { label: 'Available',    value: data?.assetData?.available ?? 0, color: '#2E7D32', accentColor: '#2E7D32', icon: <CheckCircle2 size={18}/> },
+    { label: 'Assigned',     value: data?.assetData?.assigned  ?? 0, color: '#1565C0', accentColor: '#1565C0', icon: <Link2 size={18}/> },
   ]
 
   return (
@@ -531,41 +533,47 @@ export default function AdminReports() {
 
               {/* PDF Download */}
               <button
-                onClick={() => downloadPDF(data, month, year)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 8,
-                  border: '1px solid rgba(198,40,40,0.3)',
-                  background: 'rgba(198,40,40,0.08)',
-                  color: '#C62828',
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  cursor: 'pointer',
-                }}
-              >
-                ⬇ PDF
-              </button>
+  onClick={() => downloadPDF(data, month, year)}
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '8px 16px',
+    borderRadius: 8,
+    border: '1px solid rgba(198,40,40,0.3)',
+    background: 'rgba(198,40,40,0.08)',
+    color: '#C62828',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    cursor: 'pointer',
+  }}
+>
+  <Download size={14}/> PDF
+</button>
 
               {/* Excel Download */}
               <button
-                onClick={() => downloadExcel(data, month, year)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 8,
-                  border: '1px solid rgba(46,125,50,0.3)',
-                  background: 'rgba(46,125,50,0.08)',
-                  color: '#2E7D32',
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  cursor: 'pointer',
-                }}
-              >
-                ⬇ Excel
-              </button>
+  onClick={() => downloadExcel(data, month, year)}
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '8px 16px',
+    borderRadius: 8,
+    border: '1px solid rgba(46,125,50,0.3)',
+    background: 'rgba(46,125,50,0.08)',
+    color: '#2E7D32',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    cursor: 'pointer',
+  }}
+>
+  <Download size={14}/> Excel
+</button>
             </div>
           )}
         </div>
@@ -573,17 +581,20 @@ export default function AdminReports() {
         {/* Error */}
         {error && (
           <div style={{
-            marginBottom: '1.5rem',
-            padding: '12px 16px',
-            borderRadius: 8,
-            border: '1px solid rgba(198,40,40,0.3)',
-            background: 'rgba(198,40,40,0.08)',
-            color: '#C62828',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-          }} role="alert">
-            ⚠️ {error}
-          </div>
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  marginBottom: '1.5rem',
+  padding: '12px 16px',
+  borderRadius: 8,
+  border: '1px solid rgba(198,40,40,0.3)',
+  background: 'rgba(198,40,40,0.08)',
+  color: '#C62828',
+  fontSize: '0.85rem',
+  fontWeight: 500,
+}} role="alert">
+  <AlertTriangle size={16}/> {error}
+</div>
         )}
 
         {/* Loading */}
@@ -593,7 +604,7 @@ export default function AdminReports() {
         {!loading && data && (
           <>
             {/* Ticket Summary */}
-            <SectionCard title="🎫 Ticket Summary">
+            <SectionCard title="Ticket Summary">
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(5, 1fr)',
@@ -605,12 +616,12 @@ export default function AdminReports() {
             </SectionCard>
 
             {/* Employee Activity */}
-            <SectionCard title="👥 Employee Activity" count={data.empData?.length ?? 0}>
+            <SectionCard title="Employee Activity" count={data.empData?.length ?? 0}>
               <EmployeeTable employees={data.empData ?? []} />
             </SectionCard>
 
             {/* Asset Overview */}
-            <SectionCard title="📦 Asset Overview">
+            <SectionCard title=" Asset Overview">
               {data.assetData ? (
                 <div style={{
                   display: 'grid',
@@ -644,7 +655,7 @@ export default function AdminReports() {
             border: '1px solid var(--border)',
             color: 'var(--text-muted)',
           }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📊</div>
+            <BarChart3 size={44} strokeWidth={1.5} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }}/>
             <p style={{ fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>
               Select a period and click{' '}
               <strong style={{ color: 'var(--text-main)' }}>Load Report</strong>

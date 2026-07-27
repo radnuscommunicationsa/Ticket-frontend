@@ -4,63 +4,77 @@
 @tailwind utilities;
 
 :root {
-  --bg: #ffffff;
-  --bg-mid: #e3f2fd;
+  --bg: #fafafa;
+  --bg-mid: #f3f0fb;
   --bg-card: #ffffff;
-  --bg-sidebar: #dbeeff;
-  --bg-input: #e8f4fd;
+  --bg-sidebar: #f5f2fc;
+  --bg-input: #f6f3fc;
 
-  --red-primary: #1565c0;
-  --red-bright: #1976d2;
-  --red-accent: #1565c0;
-  --red-light: #90caf9;
-  --red-glow: rgba(21, 101, 192, 0.12);
+  --red-primary: #7c3aed;
+  --red-bright: #8b5cf6;
+  --red-accent: #7c3aed;
+  --red-light: #c4b5fd;
+  --red-glow: rgba(124, 58, 237, 0.12);
 
-  --text-main: #0d1b2e;
-  --text-sub: #2a4a6b;
-  --text-muted: #5a7a9e;
+  --text-main: #1e1b2e;
+  --text-sub: #4a4361;
+  --text-muted: #8a819e;
 
-  --border: rgba(21, 101, 192, 0.18);
-  --border-mid: rgba(21, 101, 192, 0.09);
+  --border: rgba(124, 58, 237, 0.18);
+  --border-mid: rgba(124, 58, 237, 0.09);
 
   --green: #2e7d32;
   --orange: #e65100;
   --gold: #f57f17;
 
-  --shadow: 0 2px 16px rgba(21, 101, 192, 0.08);
+  --shadow: 0 2px 16px rgba(124, 58, 237, 0.08);
 }
 
 .dark {
-  --bg: #0a1628;
-  --bg-mid: #0f2040;
-  --bg-card: #122040;
-  --bg-sidebar: #0f2040;
-  --bg-input: #0a1a35;
+  --bg: #150f24;
+  --bg-mid: #1e1636;
+  --bg-card: #211a3a;
+  --bg-sidebar: #1a1330;
+  --bg-input: #1c1533;
 
-  --red-primary: #1976d2;
-  --red-accent: #42a5f5;
-  --red-light: #64b5f6;
-  --red-glow: rgba(21, 101, 192, 0.22);
+  --red-primary: #8b5cf6;
+  --red-accent: #a78bfa;
+  --red-light: #c4b5fd;
+  --red-glow: rgba(139, 92, 246, 0.22);
 
-  --text-main: #e3f2fd;
-  --text-sub: #90caf9;
-  --text-muted: #5a8ab0;
+  --text-main: #ede9fe;
+  --text-sub: #c4b5fd;
+  --text-muted: #8a7ba8;
 
-  --border: rgba(33, 150, 243, 0.18);
-  --border-mid: rgba(33, 150, 243, 0.09);
+  --border: rgba(167, 139, 250, 0.18);
+  --border-mid: rgba(167, 139, 250, 0.09);
 
-  --shadow: 0 2px 20px rgba(21, 101, 192, 0.15);
+  --shadow: 0 2px 20px rgba(139, 92, 246, 0.15);
 }
 
-body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text-main); }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
+html, body {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text-main);
+}
 .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); }
 .sidebar { background: var(--bg-sidebar); border-right: 1px solid var(--border); }
 .topbar { background: var(--bg-mid); border-bottom: 2px solid var(--red-primary); box-shadow: var(--shadow); }
 
 .btn-primary { background: var(--red-primary); color: #fff; }
 .btn-primary:hover { background: var(--red-bright); }
-.btn-ghost { background: transparent; color: var(--red-primary); border: 1px solid rgba(21,101,192,0.3); }
+.btn-ghost { background: transparent; color: var(--red-primary); border: 1px solid rgba(124,58,237,0.3); }
 .btn-ghost:hover { background: var(--red-glow); }
 
 input, select, textarea {
@@ -75,7 +89,7 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px var(--red-glow);
 }
 
-.status-open        { color: #1565c0; background: rgba(21,101,192,0.1); }
+.status-open        { color: #7c3aed; background: rgba(124,58,237,0.1); }
 .status-in-progress { color: #e65100; background: rgba(230,81,0,0.1); }
 .status-resolved    { color: #2e7d32; background: rgba(46,125,50,0.1); }
 .status-closed      { color: #757575; background: rgba(100,100,100,0.1); }

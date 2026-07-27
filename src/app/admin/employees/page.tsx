@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert, Modal, DeptBadge } from '@/components/ui'
 import api from '@/lib/api'
-
+import { Search, UserPlus, Save, Pencil, Trash2, ShieldCheck } from 'lucide-react'
 
 const DEPTS = ['Loan','Customer Support','General Manager','Accounts','Faculty','Web Development','Digital Marketing','Sales','Design','Admission','HR','Telecalling','Stock','Distribution','Technical Service Engineer','Android Development','System Administrator','Software Support']
 function avatarColor(n:string){const c=['#1565c0','#6a1b9a','#00695c','#c62828','#e65100','#2e7d32','#37474f','#4527a0'];let h=0;for(const ch of n)h+=ch.charCodeAt(0);return c[h%c.length]}
@@ -76,9 +76,11 @@ export default function AdminEmployees() {
       </div>
       <FG label="Phone"><input type="tel" style={inp} value={d.phone} onChange={e=>setD({...d,phone:e.target.value})} placeholder="Optional"/></FG>
       <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:'0.5rem'}}>
-        <button type="button" onClick={()=>setShowAdd(false)} style={{padding:'8px 18px',borderRadius:5,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
-        <button type="submit" style={{padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>➕ Add Employee</button>
-      </div>
+        <button type="button" onClick={()=>setShowAdd(false)} style={{padding:'8px 18px',borderRadius:6,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
+        <button type="submit" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 18px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
+  <UserPlus size={14}/> Add Employee
+</button>
+        </div>
     </form>
   }
 
@@ -102,8 +104,10 @@ export default function AdminEmployees() {
       <FG label="New Password (blank = no change)"><input type="password" style={inp} value={d.new_password} onChange={e=>setD({...d,new_password:e.target.value})} placeholder="Enter to change..."/></FG>
       <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:'0.5rem'}}>
         <button type="button" onClick={()=>{setEditEmp(null);setEditAdmin(null)}} style={{padding:'8px 18px',borderRadius:5,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
-        <button type="submit" style={{padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>💾 Save Changes</button>
-      </div>
+        <button type="submit" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 18px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
+  <Save size={14}/> Save Changes
+</button>
+        </div>
     </form>
   }
 
@@ -115,14 +119,19 @@ export default function AdminEmployees() {
       {msg&&<Alert type={msg.type} message={msg.text}/>}
 
      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem',gap:'1rem',flexWrap:'wrap'}}>
-  <input
-    type="text"
-    placeholder="🔍 Search by name, ID or department..."
-    value={search}
-    onChange={e=>setSearch(e.target.value)}
-    style={{padding:'8px 14px',borderRadius:5,border:'1px solid var(--border)',background:'var(--bg-input)',color:'var(--text-main)',fontSize:'0.85rem',minWidth:'280px',flex:'1',maxWidth:'400px'}}
-  />
-  <button onClick={()=>setShowAdd(true)} style={{padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>➕ Add New Employee</button>
+  <div style={{position:'relative',flex:'1',minWidth:'240px',maxWidth:'380px'}}>
+    <Search size={14} color="var(--text-muted)" style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)'}}/>
+    <input
+      type="text"
+      placeholder="Search by name, ID or department..."
+      value={search}
+      onChange={e=>setSearch(e.target.value)}
+      style={{width:'100%',padding:'8px 12px 8px 32px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg-input)',color:'var(--text-main)',fontSize:'0.82rem',boxSizing:'border-box'}}
+    />
+  </div>
+  <button onClick={()=>setShowAdd(true)} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 16px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.78rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.04em'}}>
+    <UserPlus size={14}/> Add Employee
+  </button>
 </div>
 
       {/* Employee Table */}
@@ -149,10 +158,14 @@ export default function AdminEmployees() {
                   <td style={{padding:'12px 1.4rem'}}><DeptBadge dept={e.department||'—'}/></td>
                   <td style={{padding:'12px 1.4rem'}}><span style={{background:'var(--red-primary)',color:'#fff',fontSize:'0.62rem',fontWeight:700,padding:'1px 6px',borderRadius:10}}>{e.ticket_count||0}</span></td>
                   <td style={{padding:'12px 1.4rem'}}>{(e.open_tickets||0)>0?<span style={{background:'#b71c1c',color:'#fff',fontSize:'0.62rem',fontWeight:700,padding:'1px 6px',borderRadius:10}}>{e.open_tickets}</span>:'-'}</td>
-                  <td style={{padding:'12px 1.4rem',display:'flex',gap:5,flexWrap:'wrap'}}>
-                    <button onClick={()=>setEditEmp(e)} style={{padding:'3px 8px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.68rem',fontWeight:600}}>✏️ Edit</button>
-                    <button onClick={()=>handleDelete(e._id||e.id)} style={{padding:'3px 8px',borderRadius:5,border:'1px solid rgba(198,40,40,0.25)',background:'rgba(198,40,40,0.08)',color:'#c62828',cursor:'pointer',fontSize:'0.68rem',fontWeight:600}}>Delete</button>
-                  </td>
+                  <td style={{padding:'10px 1.2rem',display:'flex',gap:6,flexWrap:'wrap'}}>
+  <button onClick={()=>setEditEmp(e)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
+    <Pencil size={11}/> Edit
+  </button>
+  <button onClick={()=>handleDelete(e._id||e.id)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'1px solid rgba(198,40,40,0.25)',background:'rgba(198,40,40,0.08)',color:'#c62828',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
+    <Trash2 size={11}/> Delete
+  </button>
+</td>
                 </tr>
               ))}
             </tbody>
@@ -162,7 +175,10 @@ export default function AdminEmployees() {
 
       {/* Admins Table */}
       <div className="card">
-        <div style={{padding:'1rem 1.4rem',borderBottom:'1px solid var(--border)',background:'var(--bg-mid)'}}><span style={{fontSize:'0.87rem',fontWeight:600}}>🛡️ Admins ({admins.length})</span></div>
+        <div style={{padding:'0.9rem 1.2rem',borderBottom:'1px solid var(--border)',background:'var(--bg-mid)',display:'flex',alignItems:'center',gap:8}}>
+  <ShieldCheck size={15} color="var(--red-primary)"/>
+  <span style={{fontSize:'0.85rem',fontWeight:600}}>Admins ({admins.length})</span>
+</div>
         <div style={{overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead><tr><TH c="Admin"/><TH c="ID"/><TH c="Phone"/><TH c="Actions"/></tr></thead>
@@ -182,9 +198,11 @@ export default function AdminEmployees() {
                   </td>
                   <td style={{padding:'12px 1.4rem',fontFamily:'IBM Plex Mono',color:'var(--red-primary)',fontSize:'0.77rem'}}>{a.emp_id}</td>
                   <td style={{padding:'12px 1.4rem',fontSize:'0.78rem',color:'var(--text-muted)'}}>{a.phone||'—'}</td>
-                  <td style={{padding:'12px 1.4rem'}}>
-                    <button onClick={()=>setEditAdmin(a)} style={{padding:'3px 8px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.68rem',fontWeight:600}}>✏️ Edit</button>
-                  </td>
+                  <td style={{padding:'10px 1.2rem'}}>
+  <button onClick={()=>setEditAdmin(a)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
+    <Pencil size={11}/> Edit
+  </button>
+</td>
                 </tr>
               ))}
             </tbody>
@@ -192,9 +210,9 @@ export default function AdminEmployees() {
         </div>
       </div>
 
-      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="➕ Add New Employee"><AddForm/></Modal>
-      {editEmp&&<Modal open={true} onClose={()=>setEditEmp(null)} title="✏️ Edit Employee"><EditForm emp={editEmp} isAdmin={false}/></Modal>}
-      {editAdmin&&<Modal open={true} onClose={()=>setEditAdmin(null)} title="🛡️ Edit Admin"><EditForm emp={editAdmin} isAdmin={true}/></Modal>}
-    </AppLayout>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Employee"><AddForm/></Modal>
+{editEmp&&<Modal open={true} onClose={()=>setEditEmp(null)} title="Edit Employee"><EditForm emp={editEmp} isAdmin={false}/></Modal>}
+{editAdmin&&<Modal open={true} onClose={()=>setEditAdmin(null)} title="Edit Admin"><EditForm emp={editAdmin} isAdmin={true}/></Modal>}
+      </AppLayout>
   )
 }

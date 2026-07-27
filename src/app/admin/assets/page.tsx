@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert, Modal, StatCard } from '@/components/ui'
 import api from '@/lib/api'
+import { Search, AlertTriangle, UserPlus, Save, Plus, Pencil, Unlock, Trash2, Package, Monitor, Boxes } from 'lucide-react'
 
 const CATS = ['Laptop','Desktop','Monitor','Keyboard','Mouse','Printer','Phone','Server','Network Device','Other']
 
@@ -157,18 +158,21 @@ export default function AdminAssets() {
         </FG>
 
         {employees.length === 0 && (
-          <div style={{
-            padding: '0.8rem',
-            background: 'rgba(198,40,40,0.06)',
-            borderRadius: 6,
-            border: '1px solid rgba(198,40,40,0.2)',
-            fontSize: '0.78rem',
-            color: '#c62828',
-            marginBottom: '1rem'
-          }}>
-            ⚠️ No employees found. Please add employees first.
-          </div>
-        )}
+  <div style={{
+    padding: '0.8rem',
+    background: 'rgba(198,40,40,0.06)',
+    borderRadius: 6,
+    border: '1px solid rgba(198,40,40,0.2)',
+    fontSize: '0.78rem',
+    color: '#c62828',
+    marginBottom: '1rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8
+  }}>
+    <AlertTriangle size={15}/> No employees found. Please add employees first.
+  </div>
+)}
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: '1rem' }}>
           <button
@@ -183,18 +187,15 @@ export default function AdminAssets() {
           >
             Cancel
           </button>
-          <button
-            type="submit"
-            disabled={employees.length === 0}
-            style={{
-              padding: '8px 18px', borderRadius: 5, border: 'none',
-              background: employees.length === 0 ? '#ccc' : '#1565c0',
-              color: '#fff', cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
-              fontSize: '0.8rem', fontWeight: 600
-            }}
-          >
-            👤 Assign to Employee
-          </button>
+          <button type="submit" disabled={employees.length === 0} style={{
+  display:'flex', alignItems:'center', gap:6,
+  padding: '8px 18px', borderRadius: 5, border: 'none',
+  background: employees.length === 0 ? '#ccc' : '#1565c0',
+  color: '#fff', cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
+  fontSize: '0.8rem', fontWeight: 600
+}}>
+  <UserPlus size={15}/> Assign to Employee
+</button>
         </div>
       </form>
     )
@@ -263,9 +264,9 @@ export default function AdminAssets() {
         </FG>
         <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
           <button type="button" onClick={()=>{setShowAdd(false);setEditAsset(null)}} style={{padding:'8px 18px',borderRadius:5,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
-          <button type="submit" style={{padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
-            💾 {existing ? 'Save Changes' : 'Add Asset'}
-          </button>
+          <button type="submit" style={{display:'flex', alignItems:'center', gap:6, padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
+  <Save size={15}/> {existing ? 'Save Changes' : 'Add Asset'}
+</button>
         </div>
       </form>
     )
@@ -296,7 +297,7 @@ export default function AdminAssets() {
       {/* Filter + Add Button */}
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'1rem',gap:10,alignItems:'center',flexWrap:'wrap'}}>
         <div style={{position:'relative'}}>
-          <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--text-muted)',fontSize:13}}>🔍</span>
+  <Search size={14} color="var(--text-muted)" style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)'}}/>
           <input
             value={q}
             onChange={e=>setQ(e.target.value)}
@@ -313,9 +314,9 @@ export default function AdminAssets() {
             fontSize:'0.73rem', padding:'5px 12px', borderRadius:20, cursor:'pointer'
           }}>{s||'All'}</button>
         ))}
-        <button onClick={()=>setShowAdd(true)} style={{padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
-          ➕ Add New Asset
-        </button>
+        <button onClick={()=>setShowAdd(true)} style={{display:'flex', alignItems:'center', gap:6, padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
+  <Plus size={15}/> Add New Asset
+</button>
       </div>
 
       {/* Assets Table */}
@@ -383,52 +384,43 @@ export default function AdminAssets() {
                           <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
                             {/* Assign button — only for Available assets */}
                             {a.status === 'Available' && (
-                              <button
-                                onClick={() => setAssignAsset(a)}
-                                style={{
-                                  padding:'3px 8px', borderRadius:5, border:'none',
-                                  background:'#1565c0', color:'#fff',
-                                  cursor:'pointer', fontSize:'0.68rem', fontWeight:600
-                                }}
-                              >
-                                👤 Assign
-                              </button>
-                            )}
-                            {/* Unassign button — only for Assigned assets */}
-                            {a.status === 'Assigned' && (
-                              <button
-                                onClick={() => handleUnassign(a._id || a.id)}
-                                style={{
-                                  padding:'3px 8px', borderRadius:5,
-                                  border:'1px solid #e65100',
-                                  background:'rgba(230,81,0,0.08)', color:'#e65100',
-                                  cursor:'pointer', fontSize:'0.68rem', fontWeight:600
-                                }}
-                              >
-                                🔓 Unassign
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setEditAsset(a)}
-                              style={{
-                                padding:'3px 8px', borderRadius:5, border:'none',
-                                background:'var(--red-primary)', color:'#fff',
-                                cursor:'pointer', fontSize:'0.68rem', fontWeight:600
-                              }}
-                            >
-                              ✏️ Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(a._id || a.id)}
-                              style={{
-                                padding:'3px 8px', borderRadius:5,
-                                border:'1px solid rgba(198,40,40,0.25)',
-                                background:'rgba(198,40,40,0.08)', color:'#c62828',
-                                cursor:'pointer', fontSize:'0.68rem', fontWeight:600
-                              }}
-                            >
-                              Del
-                            </button>
+  <button onClick={() => setAssignAsset(a)} style={{
+    display:'flex', alignItems:'center', gap:4,
+    padding:'3px 8px', borderRadius:5, border:'none',
+    background:'#1565c0', color:'#fff',
+    cursor:'pointer', fontSize:'0.68rem', fontWeight:600
+  }}>
+    <UserPlus size={12}/> Assign
+  </button>
+)}
+{a.status === 'Assigned' && (
+  <button onClick={() => handleUnassign(a._id || a.id)} style={{
+    display:'flex', alignItems:'center', gap:4,
+    padding:'3px 8px', borderRadius:5,
+    border:'1px solid #e65100',
+    background:'rgba(230,81,0,0.08)', color:'#e65100',
+    cursor:'pointer', fontSize:'0.68rem', fontWeight:600
+  }}>
+    <Unlock size={12}/> Unassign
+  </button>
+)}
+<button onClick={() => setEditAsset(a)} style={{
+  display:'flex', alignItems:'center', gap:4,
+  padding:'3px 8px', borderRadius:5, border:'none',
+  background:'var(--red-primary)', color:'#fff',
+  cursor:'pointer', fontSize:'0.68rem', fontWeight:600
+}}>
+  <Pencil size={12}/> Edit
+</button>
+<button onClick={() => handleDelete(a._id || a.id)} style={{
+  display:'flex', alignItems:'center', gap:4,
+  padding:'3px 8px', borderRadius:5,
+  border:'1px solid rgba(198,40,40,0.25)',
+  background:'rgba(198,40,40,0.08)', color:'#c62828',
+  cursor:'pointer', fontSize:'0.68rem', fontWeight:600
+}}>
+  <Trash2 size={12}/> Del
+</button>
                           </div>
                         </td>
                       </tr>
@@ -441,21 +433,21 @@ export default function AdminAssets() {
       </div>
 
       {/* Add Modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="➕ Add New Asset">
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add New Asset">
         <AssetForm/>
       </Modal>
 
       {/* Edit Modal */}
       {editAsset && (
-        <Modal open={true} onClose={() => setEditAsset(null)} title="✏️ Edit Asset">
-          <AssetForm existing={editAsset}/>
+        <Modal open={true} onClose={() => setEditAsset(null)} title="Edit Asset">
+            <AssetForm existing={editAsset}/>
         </Modal>
       )}
 
       {/* ✅ NEW: Assign Modal */}
       {assignAsset && (
-        <Modal open={true} onClose={() => setAssignAsset(null)} title="👤 Assign Asset to Employee">
-          <AssignForm asset={assignAsset}/>
+<Modal open={true} onClose={() => setAssignAsset(null)} title="Assign Asset to Employee">
+<AssignForm asset={assignAsset}/>
         </Modal>
       )}
     </AppLayout>

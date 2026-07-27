@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader } from '@/components/ui'
 import api from '@/lib/api'
+import { Laptop, Monitor, Smartphone, Printer, Keyboard, Mouse, Package } from 'lucide-react'
 
 const STATUS_COLOR: any = {
   Available: '#2e7d32',
@@ -13,14 +14,14 @@ const STATUS_COLOR: any = {
 }
 
 const CATEGORY_ICON: any = {
-  Laptop: '💻',
-  Desktop: '🖥️',
-  Mobile: '📱',
-  Printer: '🖨️',
-  Monitor: '🖥️',
-  Keyboard: '⌨️',
-  Mouse: '🖱️',
-  Other: '📦',
+  Laptop: <Laptop size={18} strokeWidth={1.8} />,
+  Desktop: <Monitor size={18} strokeWidth={1.8} />,
+  Mobile: <Smartphone size={18} strokeWidth={1.8} />,
+  Printer: <Printer size={18} strokeWidth={1.8} />,
+  Monitor: <Monitor size={18} strokeWidth={1.8} />,
+  Keyboard: <Keyboard size={18} strokeWidth={1.8} />,
+  Mouse: <Mouse size={18} strokeWidth={1.8} />,
+  Other: <Package size={18} strokeWidth={1.8} />,
 }
 
 export default function MyAssets() {

@@ -98,6 +98,7 @@ export default function AppLayout({ children, role }: LayoutProps) {
   const adminSide = [
     { href: '/admin/dashboard', icon: <LayoutDashboard size={16}/>, label: 'Dashboard' },
     { href: '/admin/tickets', icon: <Ticket size={16}/>, label: 'All Tickets' },
+    { href: '/employee/raise-ticket', icon: <Plus size={16}/>, label: 'Raise Ticket' },
     { href: '/admin/assets', icon: <Monitor size={16}/>, label: 'Assets' },
     { href: '/admin/employees', icon: <Users size={16}/>, label: 'Employees' },
     { href: '/admin/reports', icon: <BarChart3 size={16}/>, label: 'Monthly Report' },
@@ -230,7 +231,7 @@ export default function AppLayout({ children, role }: LayoutProps) {
 
       <div style={{ display: 'flex', minHeight: 'calc(100vh - 60px)' }}>
         {/* Sidebar */}
-        <div className="sidebar" style={{ width: 230, padding: '1rem 0', flexShrink: 0, position: 'fixed', top: 60, left: 0, height: 'calc(100vh - 60px)', overflowY: 'auto', zIndex: 160, transform: sideOpen ? 'translateX(0)' : 'translateX(-100%)', transition: 'transform 0.25s ease' }}>
+        <div className="sidebar" style={{ width: 230, padding: '1.4rem 0', flexShrink: 0, position: 'fixed', top: 60, left: 0, height: 'calc(100vh - 60px)', overflowY: 'auto', zIndex: 160, transform: sideOpen ? 'translateX(0)' : 'translateX(-100%)', transition: 'transform 0.25s ease', borderRight: '1px solid var(--border)', background: 'var(--bg)' }}>
           {sideLinks.map(s => (
             <Link key={s.href} href={s.href}
               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 1.2rem', fontSize: '0.84rem', color: path.startsWith(s.href) ? 'var(--red-primary)' : 'var(--text-sub)', borderLeft: path.startsWith(s.href) ? '3px solid var(--red-primary)' : '3px solid transparent', background: path.startsWith(s.href) ? 'var(--red-glow)' : 'transparent', textDecoration: 'none' }}>

@@ -19,13 +19,10 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      const url = err.config?.url || '';
-      if (url.includes('/auth/') || err.response?.data?.error === 'No token') {
-        Cookies.remove('td_token');
-        Cookies.remove('td_user');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
+      Cookies.remove('td_token');
+      Cookies.remove('td_user');
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
       }
     }
     return Promise.reject(err);

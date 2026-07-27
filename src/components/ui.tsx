@@ -1,3 +1,4 @@
+import { CheckCircle2, AlertCircle, Info } from 'lucide-react'
 // Priority Badge
 export function PriorityBadge({ priority }: { priority: string }) {
   const map: any = {
@@ -27,7 +28,7 @@ export function StatusBadge({ status }: { status: string }) {
 
 // Dept Badge
 export function DeptBadge({ dept }: { dept: string }) {
-  return <span style={{ fontSize:'0.71rem', color:'var(--red-primary)', background:'rgba(198,40,40,0.08)', padding:'2px 8px', borderRadius:3, border:'1px solid rgba(198,40,40,0.18)' }}>{dept}</span>
+  return <span style={{ fontSize:'0.71rem', color:'var(--red-primary)', background:'var(--red-glow)', padding:'2px 8px', borderRadius:3, border:'1px solid var(--border)' }}>{dept}</span>
 }
 
 // Stat Card
@@ -40,13 +41,31 @@ export function StatCard({ label, value, sub, color }: { label: string; value: n
   </div>
 }
 
-// Alert
 export function Alert({ type, message }: { type: 'success' | 'error' | 'info'; message: string }) {
-  const colors = { success: '#2e7d32', error: '#c62828', info: 'var(--red-primary)' }
-  const bgs    = { success: 'rgba(46,125,50,0.08)', error: 'rgba(198,40,40,0.08)', info: 'rgba(198,40,40,0.06)' }
-  return <div style={{ padding:'12px 16px', borderRadius:6, fontSize:'0.85rem', marginBottom:'1rem', border:`1px solid ${colors[type]}40`, background:bgs[type], color:colors[type] }}>
-    {type === 'success' ? '✅' : '⚠️'} {message}
-  </div>
+  const colors = { success: '#2e7d32', error: '#dc2626', info: 'var(--red-primary)' }
+  const bgs    = { success: 'rgba(46,125,50,0.08)', error: 'rgba(220,38,38,0.08)', info: 'var(--red-glow)' }
+  const icons  = {
+    success: <CheckCircle2 size={17} strokeWidth={2} />,
+    error: <AlertCircle size={17} strokeWidth={2} />,
+    info: <Info size={17} strokeWidth={2} />,
+  }
+  return (
+    <div style={{
+      padding: '10px 16px',
+      borderRadius: 6,
+      fontSize: '0.85rem',
+      marginBottom: '1rem',
+      border: `1px solid ${colors[type]}40`,
+      background: bgs[type],
+      color: colors[type],
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+    }}>
+      {icons[type]}
+      <span>{message}</span>
+    </div>
+  )
 }
 
 // Page Header
