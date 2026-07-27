@@ -202,11 +202,19 @@ export default function AdminAssets() {
   }
 
   const AssetForm = ({existing}:{existing?:any}) => {
-    const [d, setD] = useState(existing || {
-      asset_code:'', name:'', category:'', brand:'', model:'',
-      serial_no:'', purchase_date:'', warranty_until:'',
-      location:'', notes:'', status:'Available'
-    })
+    const [d, setD] = useState({
+  asset_code: existing?.asset_code || '',
+  name: existing?.name || '',
+  category: existing?.category || '',
+  brand: existing?.brand || '',
+  model: existing?.model || '',
+  serial_no: existing?.serial_no || '',
+  purchase_date: existing?.purchase_date ? existing.purchase_date.split('T')[0] : '',
+  warranty_until: existing?.warranty_until ? existing.warranty_until.split('T')[0] : '',
+  location: existing?.location || '',
+  notes: existing?.notes || '',
+  status: existing?.status || 'Available'
+})
 
     const submit = async (e:React.FormEvent) => {
       e.preventDefault()
