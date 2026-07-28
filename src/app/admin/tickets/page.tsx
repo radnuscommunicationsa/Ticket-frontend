@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert } from '@/components/ui'
 import api from '@/lib/api'
+import { RefreshCw } from 'lucide-react'
 
 const STATUS_COLOR: any = {
   open: '#1565c0',
@@ -26,6 +27,7 @@ export default function AdminTicketsPage() {
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState<any>(null)
   const [selected, setSelected] = useState<string[]>([])
+  const [refreshing, setRefreshing] = useState(false)
 
   const loadTickets = async () => {
     try {
@@ -42,6 +44,12 @@ export default function AdminTicketsPage() {
   }
 
   useEffect(() => { loadTickets() }, [])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadTickets()
+    setRefreshing(false)
+  }
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -87,16 +95,26 @@ const toggleSelectAll = () => {
 
       <div className="card" style={{ overflow: 'hidden' }}>
         {/* HEADER */}
-        <div style={{ padding: '1rem 1.4rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '1rem 1.4rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
   <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Total Tickets ({tickets.length})</span>
-  {selected.length > 0 && (
+  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+    {selected.length > 0 && (
+      <button
+        onClick={handleBulkDelete}
+        style={{ padding: '6px 14px', background: '#c62828', color: '#fff', border: 'none', borderRadius: 5, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+      >
+      Delete Selected ({selected.length})
+      </button>
+    )}
     <button
-      onClick={handleBulkDelete}
-      style={{ padding: '6px 14px', background: '#c62828', color: '#fff', border: 'none', borderRadius: 5, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+      onClick={handleRefresh}
+      disabled={refreshing}
+      title="Refresh list"
+      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--bg-card)', color: 'var(--text-sub)', border: '1px solid var(--border)', borderRadius: 5, fontSize: '0.75rem', fontWeight: 600, cursor: refreshing ? 'not-allowed' : 'pointer' }}
     >
-    Delete Selected ({selected.length})
+      <RefreshCw size={13} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}/> Refresh
     </button>
-  )}
+  </div>
 </div>
 
         {/* TABLE */}

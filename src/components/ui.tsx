@@ -2,13 +2,18 @@ import { CheckCircle2, AlertCircle, Info } from 'lucide-react'
 // Priority Badge
 export function PriorityBadge({ priority }: { priority: string }) {
   const map: any = {
-    critical: { label: '🔴 Critical', cls: 'priority-critical' },
-    high:     { label: '🟠 High',     cls: 'priority-high' },
-    medium:   { label: '🟡 Medium',   cls: 'priority-medium' },
-    low:      { label: '🟢 Low',      cls: 'priority-low' },
+    critical: { label: 'Critical', color: '#b71c1c', cls: 'priority-critical' },
+    high:     { label: 'High',     color: '#e65100', cls: 'priority-high' },
+    medium:   { label: 'Medium',   color: '#f57f17', cls: 'priority-medium' },
+    low:      { label: 'Low',      color: '#2e7d32', cls: 'priority-low' },
   }
-  const p = map[priority] || { label: priority, cls: 'priority-low' }
-  return <span className={p.cls} style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:'0.73rem', fontWeight:600, padding:'3px 8px', borderRadius:3 }}>{p.label}</span>
+  const p = map[priority] || { label: priority, color: 'var(--text-muted)', cls: 'priority-low' }
+  return (
+    <span className={p.cls} style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:'0.73rem', fontWeight:600, padding:'3px 9px', borderRadius:3 }}>
+      <span style={{ width:6, height:6, borderRadius:'50%', background:p.color, display:'inline-block' }} />
+      {p.label}
+    </span>
+  )
 }
 
 // Status Badge

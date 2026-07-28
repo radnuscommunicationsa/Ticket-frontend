@@ -89,6 +89,15 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px var(--red-glow);
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .status-open        { color: #7c3aed; background: rgba(124,58,237,0.1); }
 .status-in-progress { color: #e65100; background: rgba(230,81,0,0.1); }
 .status-resolved    { color: #2e7d32; background: rgba(46,125,50,0.1); }

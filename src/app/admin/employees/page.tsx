@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert, Modal, DeptBadge } from '@/components/ui'
 import api from '@/lib/api'
-import { Search, UserPlus, Save, Pencil, Trash2, ShieldCheck } from 'lucide-react'
+import { Search, UserPlus, Save, Pencil, Trash2, ShieldCheck, RefreshCw } from 'lucide-react'
 
 const DEPTS = ['Loan','Customer Support','General Manager','Accounts','Faculty','Web Development','Digital Marketing','Sales','Design','Admission','HR','Telecalling','Stock','Distribution','Technical Service Engineer','Android Development','System Administrator','Software Support']
 function avatarColor(n:string){const c=['#1565c0','#6a1b9a','#00695c','#c62828','#e65100','#2e7d32','#37474f','#4527a0'];let h=0;for(const ch of n)h+=ch.charCodeAt(0);return c[h%c.length]}
@@ -17,6 +17,7 @@ export default function AdminEmployees() {
   const [editEmp,setEditEmp]=useState<any>(null)
   const [editAdmin,setEditAdmin]=useState<any>(null)
   const [search,setSearch]=useState('')
+  const [refreshing,setRefreshing]=useState(false)
 
   const load=async()=>{
     try{
@@ -26,6 +27,12 @@ export default function AdminEmployees() {
     }catch(err:any){setMsg({type:'error',text:err.response?.data?.error||'Failed to load'})}
   }
   useEffect(()=>{load()},[])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await load()
+    setRefreshing(false)
+  }
 
   const filteredEmployees = employees.filter((e:any) => 
     e.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -118,7 +125,7 @@ export default function AdminEmployees() {
       <PageHeader breadcrumb="EMPLOYEES" title="Employee Management" subtitle="Manage your team members and their access"/>
       {msg&&<Alert type={msg.type} message={msg.text}/>}
 
-     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem',gap:'1rem',flexWrap:'wrap'}}>
+     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem',gap:'0.7rem',flexWrap:'wrap'}}>
   <div style={{position:'relative',flex:'1',minWidth:'240px',maxWidth:'380px'}}>
     <Search size={14} color="var(--text-muted)" style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)'}}/>
     <input
@@ -129,6 +136,9 @@ export default function AdminEmployees() {
       style={{width:'100%',padding:'8px 12px 8px 32px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg-input)',color:'var(--text-main)',fontSize:'0.82rem',boxSizing:'border-box'}}
     />
   </div>
+  <button onClick={handleRefresh} disabled={refreshing} title="Refresh list" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 12px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg-card)',color:'var(--text-sub)',cursor:refreshing?'not-allowed':'pointer',fontSize:'0.78rem',fontWeight:600}}>
+    <RefreshCw size={14} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}/> Refresh
+  </button>
   <button onClick={()=>setShowAdd(true)} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 16px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.78rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.04em'}}>
     <UserPlus size={14}/> Add Employee
   </button>
