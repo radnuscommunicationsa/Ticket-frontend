@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Bell, Clock, User, Info, Circle, Paperclip, Download } from 'lucide-react'
+import { Bell, Clock, User, Info, Circle, Paperclip, Download, MessageSquare, Send } from 'lucide-react'
 
 import AppLayout from '@/components/AppLayout'
 import {
@@ -22,25 +22,43 @@ export default function TicketDetail() {
 
   const [ticket, setTicket] = useState<any>(null)
   const [logs, setLogs] = useState<any[]>([])
+  const [comments, setComments] = useState<any[]>([])
   const [status, setStatus] = useState('open')
   const [note, setNote] = useState('')
+  const [commentText, setCommentText] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [sending, setSending] = useState(false)
   const [msg, setMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
+  
   const loadTicket = async () => {
     try {
       setLoading(true)
       const { data } = await api.get(`/tickets/${id}`)
       setTicket(data)
       setLogs(data.logs || [])
+      setComments(data.comments || [])
       setStatus(data.status || 'open')
     } catch (err) {
       setMsg({ type: 'error', text: 'Failed to load ticket' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  // ✅ Silent refresh - no loading spinner, page-la flash aagathu
+  const refreshTicket = async () => {
+    try {
+      const { data } = await api.get(`/tickets/${id}`)
+      setTicket(data)
+      setLogs(data.logs || [])
+      setComments(data.comments || [])
+      setStatus(data.status || 'open')
+    } catch (err) {
+      console.error(err)
     }
   }
 
@@ -52,12 +70,27 @@ export default function TicketDetail() {
       setSaving(true)
       await api.patch(`/tickets/${id}`, { status, note })
       setMsg({ type: 'success', text: 'Ticket updated successfully' })
-      loadTicket()
+      await refreshTicket()
       setNote('')
     } catch (err: any) {
       setMsg({ type: 'error', text: err?.response?.data?.error || 'Update failed' })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const sendComment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!commentText.trim()) return
+    try {
+      setSending(true)
+      await api.post(`/tickets/${id}/comment`, { message: commentText.trim() })
+      setCommentText('')
+      await refreshTicket()
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err?.response?.data?.error || 'Failed to send comment' })
+    } finally {
+      setSending(false)
     }
   }
 
@@ -135,7 +168,7 @@ export default function TicketDetail() {
           )}
 
           {/* ACTIVITY */}
-          <div className="card">
+          <div className="card" style={{ marginBottom: '1rem' }}>
             <div style={{ padding: '0.8rem 1rem', borderBottom: '1px solid var(--border)' }}>
               <strong style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}><Bell size={14}/> Activity / Updates</strong>
             </div>
@@ -162,6 +195,55 @@ export default function TicketDetail() {
                   <Info size={14} />No updates yet. The IT team will update this ticket shortly.
                 </p>
               )}
+            </div>
+          </div>
+
+          {/* ✅ COMMENTS THREAD */}
+          <div className="card">
+            <div style={{ padding: '0.8rem 1rem', borderBottom: '1px solid var(--border)' }}>
+              <strong style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}><MessageSquare size={14}/> Comments ({comments.length})</strong>
+            </div>
+            <div style={{ padding: '0.9rem 1rem' }}>
+              {comments.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '0.8rem' }}>No comments yet. Start the conversation below.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: '1rem', maxHeight: 320, overflowY: 'auto' }}>
+                  {comments.map((c: any, i: number) => {
+                    const isAdmin = c.by_role === 'admin'
+                    return (
+                      <div key={i} style={{ display: 'flex', justifyContent: isAdmin ? 'flex-end' : 'flex-start' }}>
+                        <div style={{
+                          maxWidth: '80%',
+                          padding: '8px 12px',
+                          borderRadius: 10,
+                          background: isAdmin ? 'var(--red-primary)' : 'var(--bg-mid)',
+                          color: isAdmin ? '#fff' : 'var(--text-main)',
+                        }}>
+                          <div style={{ fontSize: '0.68rem', fontWeight: 700, opacity: 0.85, marginBottom: 3 }}>
+                            {c.by || (isAdmin ? 'IT Support' : 'Employee')}
+                          </div>
+                          <div style={{ fontSize: '0.82rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{c.message}</div>
+                          <div style={{ fontSize: '0.65rem', opacity: 0.7, marginTop: 4, textAlign: 'right' }}>
+                            {c.created_at ? new Date(c.created_at).toLocaleString() : ''}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              <form onSubmit={sendComment} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Type a reply to the employee..."
+                  style={{ flex: 1, padding: '9px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.82rem' }}
+                />
+                <button type="submit" disabled={sending || !commentText.trim()} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: 'var(--red-primary)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, opacity: sending || !commentText.trim() ? 0.6 : 1 }}>
+                  <Send size={14}/> {sending ? 'Sending...' : 'Send'}
+                </button>
+              </form>
             </div>
           </div>
         </div>

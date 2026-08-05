@@ -5,19 +5,43 @@ import Link from 'next/link'
 import AppLayout from '@/components/AppLayout'
 import { PriorityBadge, StatusBadge } from '@/components/ui'
 import api from '@/lib/api'
-import { Paperclip, Download, FileText, Bell, ArrowLeft } from 'lucide-react'
+import { Paperclip, Download, FileText, Bell, ArrowLeft, MessageSquare, Send } from 'lucide-react'
 
 export default function ViewTicket() {
   const { id }   = useParams()
   const router   = useRouter()
   const [ticket, setTicket] = useState<any>(null)
   const [logs,   setLogs]   = useState<any[]>([])
+  const [comments, setComments] = useState<any[]>([])
+  const [commentText, setCommentText] = useState('')
+  const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
   const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-  useEffect(() => {
-    api.get(`/tickets/${id}`).then(r => { setTicket(r.data); setLogs(r.data.logs) }).catch(() => router.replace('/employee/dashboard')).finally(() => setLoading(false))
-  }, [id])
+  const loadTicket = () => {
+    api.get(`/tickets/${id}`).then(r => {
+      setTicket(r.data)
+      setLogs(r.data.logs || [])
+      setComments(r.data.comments || [])
+    }).catch(() => router.replace('/employee/dashboard')).finally(() => setLoading(false))
+  }
+
+  useEffect(() => { loadTicket() }, [id])
+
+  const sendComment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!commentText.trim()) return
+    try {
+      setSending(true)
+      await api.post(`/tickets/${id}/comment`, { message: commentText.trim() })
+      setCommentText('')
+      loadTicket()
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSending(false)
+    }
+  }
 
   if (loading) return <AppLayout role="employee"><div style={{ color:'var(--text-muted)' }}>Loading...</div></AppLayout>
   if (!ticket) return null
@@ -84,7 +108,7 @@ export default function ViewTicket() {
       )}
 
       {/* Activity */}
-      <div className="card">
+      <div className="card" style={{ marginBottom:'1rem' }}>
         <div style={{ padding:'0.8rem 1.2rem', borderBottom:'1px solid var(--border)', background:'var(--bg-mid)' }}>
           <span style={{ fontSize:'0.83rem', fontWeight:600, display:'flex', alignItems:'center', gap:6 }}><Bell size={14}/> Activity / Updates</span>
         </div>
@@ -105,6 +129,56 @@ export default function ViewTicket() {
               </div>
             ))
           )}
+        </div>
+      </div>
+
+      {/* ✅ COMMENTS THREAD */}
+      <div className="card">
+        <div style={{ padding:'0.8rem 1.2rem', borderBottom:'1px solid var(--border)', background:'var(--bg-mid)' }}>
+          <span style={{ fontSize:'0.83rem', fontWeight:600, display:'flex', alignItems:'center', gap:6 }}><MessageSquare size={14}/> Comments ({comments.length})</span>
+        </div>
+        <div style={{ padding:'1.1rem' }}>
+          {comments.length === 0 ? (
+            <p style={{ color:'var(--text-muted)', fontSize:'0.8rem', marginBottom:'0.8rem' }}>No comments yet. Ask a question or add details below.</p>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:'1rem', maxHeight:320, overflowY:'auto' }}>
+              {comments.map((c: any, i: number) => {
+                const isAdmin = c.by_role === 'admin'
+                return (
+                  <div key={i} style={{ display:'flex', justifyContent: isAdmin ? 'flex-start' : 'flex-end' }}>
+                    <div style={{
+                      maxWidth:'80%',
+                      padding:'8px 12px',
+                      borderRadius:10,
+                      background: isAdmin ? 'var(--bg-mid)' : 'var(--red-primary)',
+                      color: isAdmin ? 'var(--text-main)' : '#fff',
+                    }}>
+                      <div style={{ fontSize:'0.68rem', fontWeight:700, opacity:0.85, marginBottom:3 }}>
+                        {isAdmin ? (c.by || 'IT Support') : 'You'}
+                      </div>
+                      <div style={{ fontSize:'0.82rem', whiteSpace:'pre-wrap', lineHeight:1.5 }}>{c.message}</div>
+                      <div style={{ fontSize:'0.65rem', opacity:0.7, marginTop:4, textAlign:'right' }}>
+                        {c.created_at ? new Date(c.created_at).toLocaleString() : ''}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <form onSubmit={sendComment} style={{ display:'flex', gap:8 }}>
+            <input
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="Type a message to IT support..."
+              style={{ flex:1, padding:'9px 12px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text-main)', fontSize:'0.82rem' }}
+            />
+            <button type="submit" disabled={sending || !commentText.trim()} style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 16px', background:'var(--red-primary)', color:'#fff', border:'none', borderRadius:6, cursor:'pointer', fontSize:'0.82rem', fontWeight:600, opacity: sending || !commentText.trim() ? 0.6 : 1 }}>
+              <Send size={14}/> {sending ? 'Sending...' : 'Send'}
+            </button>
+          </form>
+
           <div style={{ height:1, background:'var(--border)', margin:'1rem 0' }} />
           <Link href="/employee/dashboard" style={{ display:'flex', alignItems:'center', gap:6, width:'fit-content', background:'transparent', color:'var(--red-primary)', border:'1px solid rgba(198,40,40,0.3)', borderRadius:5, padding:'6px 12px', fontSize:'0.78rem', fontWeight:600, textDecoration:'none' }}><ArrowLeft size={13}/> Back to My Tickets</Link>
         </div>
