@@ -95,8 +95,8 @@ const toggleSelectAll = () => {
 
       <div className="card" style={{ overflow: 'hidden' }}>
         {/* HEADER */}
-        <div style={{ padding: '1rem 1.4rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-  <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Total Tickets ({tickets.length})</span>
+        <div style={{ padding: '0.8rem 1.1rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Total Tickets ({tickets.length})</span>
   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
     {selected.length > 0 && (
       <button
@@ -122,14 +122,14 @@ const toggleSelectAll = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
   <tr>
-    <th style={{ padding: '12px 1rem', borderBottom: '1px solid var(--border)', background: 'rgba(198,40,40,0.04)' }}>
-      <input type="checkbox" checked={tickets.length > 0 && selected.length === tickets.length} onChange={toggleSelectAll} />
-    </th>
-    {['Ticket No', 'Subject', 'Employee', 'Department', 'Priority', 'Status', 'Created', 'Action'].map((h) => (
-      <th key={h} style={{ padding: '12px 1rem', textAlign: 'left', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', background: 'rgba(198,40,40,0.04)', whiteSpace: 'nowrap' }}>
-        {h}
-      </th>
-    ))}
+    <th style={{ padding: '9px 0.9rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)' }}>
+  <input type="checkbox" checked={tickets.length > 0 && selected.length === tickets.length} onChange={toggleSelectAll} />
+</th>
+{['Ticket No', 'Subject', 'Employee', 'Department', 'Priority', 'Status', 'Created', 'Action'].map((h) => (
+  <th key={h} style={{ padding: '9px 0.9rem', textAlign: 'left', fontSize: '0.63rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', whiteSpace: 'nowrap' }}>
+    {h}
+  </th>
+))}
   </tr>
 </thead>
 
@@ -146,59 +146,44 @@ const toggleSelectAll = () => {
   onMouseEnter={e => (e.currentTarget.style.background = 'rgba(198,40,40,0.04)')}
   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
 >
-  <td style={{ padding: '12px 1rem' }} onClick={e => e.stopPropagation()}>
-    <input type="checkbox" checked={selected.includes(t._id || t.id)} onChange={() => toggleSelectOne(t._id || t.id)} />
-  </td>
- {/* TICKET NO */}
-                    <td style={{ padding: '12px 1rem', fontFamily: 'monospace', fontWeight: 700, color: 'var(--red-primary)', whiteSpace: 'nowrap' }}>
-                      {t.ticket_no}
-                    </td>
-                    {/* SUBJECT */}
-                    <td style={{ padding: '12px 1rem', color: 'var(--text-main)', minWidth: 220 }}>
-                      {t.subject}
-                    </td>
-
-                    {/* EMPLOYEE */}
-                    <td style={{ padding: '12px 1rem', whiteSpace: 'nowrap' }}>
-                      {t.emp_name || '—'}
-                    </td>
-
-                    {/* DEPARTMENT */}
-                    <td style={{ padding: '12px 1rem', whiteSpace: 'nowrap' }}>
-                      {t.department || '—'}
-                    </td>
-
-                    {/* PRIORITY */}
-                    <td style={{ padding: '12px 1rem' }}>
-                      <span style={{ background: `${PRIORITY_COLOR[t.priority]}20`, color: PRIORITY_COLOR[t.priority], padding: '4px 9px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                        {t.priority}
-                      </span>
-                    </td>
-
-                    {/* STATUS */}
-                    <td style={{ padding: '12px 1rem' }}>
-                      <span style={{ background: `${STATUS_COLOR[t.status]}20`, color: STATUS_COLOR[t.status], padding: '4px 9px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                        {t.status}
-                      </span>
-                    </td>
-
-                    {/* CREATED */}
-                    <td style={{ padding: '12px 1rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontSize: '0.75rem' }}>
-                      {new Date(t.created_at || t.createdAt).toLocaleDateString()}
-                    </td>
+  <td style={{ padding: '9px 0.9rem', fontFamily: 'monospace', fontWeight: 700, color: 'var(--red-primary)', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
+  {t.ticket_no}
+</td>
+<td style={{ padding: '9px 0.9rem', color: 'var(--text-main)', minWidth: 200, fontSize: '0.8rem' }}>
+  {t.subject}
+</td>
+<td style={{ padding: '9px 0.9rem', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+  {t.emp_name || '—'}
+</td>
+<td style={{ padding: '9px 0.9rem', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+  {t.department || '—'}
+</td>
+<td style={{ padding: '9px 0.9rem' }}>
+  <span style={{ background: `${PRIORITY_COLOR[t.priority]}20`, color: PRIORITY_COLOR[t.priority], padding: '3px 8px', borderRadius: 20, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase' }}>
+    {t.priority}
+  </span>
+</td>
+<td style={{ padding: '9px 0.9rem' }}>
+  <span style={{ background: `${STATUS_COLOR[t.status]}20`, color: STATUS_COLOR[t.status], padding: '3px 8px', borderRadius: 20, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase' }}>
+    {t.status}
+  </span>
+</td>
+<td style={{ padding: '9px 0.9rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
+  {new Date(t.created_at || t.createdAt).toLocaleDateString()}
+</td>
 
                     {/* ACTION */}
-            <td style={{ padding: '12px 1rem' }} onClick={e => e.stopPropagation()}>
-  <div style={{ display: 'flex', gap: 6 }}>
+           <td style={{ padding: '9px 0.9rem' }} onClick={e => e.stopPropagation()}>
+  <div style={{ display: 'flex', gap: 5 }}>
     <button
       onClick={() => router.push(`/admin/tickets/${t._id || t.id}`)}
-      style={{ padding: '5px 12px', background: 'var(--red-primary)', color: '#fff', border: 'none', borderRadius: 5, fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+      style={{ padding: '4px 10px', background: 'var(--red-primary)', color: '#fff', border: 'none', borderRadius: 5, fontSize: '0.68rem', fontWeight: 600, cursor: 'pointer' }}
     >
       View
     </button>
     <button
       onClick={(e) => handleDelete(t._id || t.id, e)}
-      style={{ padding: '5px 12px', background: 'transparent', color: '#c62828', border: '1px solid rgba(198,40,40,0.3)', borderRadius: 5, fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+      style={{ padding: '4px 10px', background: 'transparent', color: '#c62828', border: '1px solid rgba(198,40,40,0.3)', borderRadius: 5, fontSize: '0.68rem', fontWeight: 600, cursor: 'pointer' }}
     >
       Delete
     </button>

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import AppLayout from '@/components/AppLayout'
 import { PriorityBadge, StatusBadge } from '@/components/ui'
 import api from '@/lib/api'
-import { Paperclip, Download, FileText, Bell, ArrowLeft, MessageSquare, Send } from 'lucide-react'
+import { Paperclip, Download, FileText, Bell, ArrowLeft, MessageSquare, Send, Star, CheckCircle2 } from 'lucide-react'
 
 export default function ViewTicket() {
   const { id }   = useParams()
@@ -13,8 +13,12 @@ export default function ViewTicket() {
   const [ticket, setTicket] = useState<any>(null)
   const [logs,   setLogs]   = useState<any[]>([])
   const [comments, setComments] = useState<any[]>([])
-  const [commentText, setCommentText] = useState('')
-  const [sending, setSending] = useState(false)
+const [commentText, setCommentText] = useState('')
+const [sending, setSending] = useState(false)
+const [rating, setRating] = useState(0)
+const [feedbackComment, setFeedbackComment] = useState('')
+const [submittingFeedback, setSubmittingFeedback] = useState(false)
+  
   const [loading, setLoading] = useState(true)
   const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -23,6 +27,10 @@ export default function ViewTicket() {
       setTicket(r.data)
       setLogs(r.data.logs || [])
       setComments(r.data.comments || [])
+      if (r.data.feedback?.rating) {
+        setRating(r.data.feedback.rating)
+        setFeedbackComment(r.data.feedback.comment || '')
+      }
     }).catch(() => router.replace('/employee/dashboard')).finally(() => setLoading(false))
   }
 
@@ -40,6 +48,20 @@ export default function ViewTicket() {
       console.error(err)
     } finally {
       setSending(false)
+    }
+  }
+
+  const submitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!rating) return
+    try {
+      setSubmittingFeedback(true)
+      await api.post(`/tickets/${id}/feedback`, { rating, comment: feedbackComment.trim() })
+      loadTicket()
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSubmittingFeedback(false)
     }
   }
 
@@ -179,10 +201,64 @@ export default function ViewTicket() {
             </button>
           </form>
 
-          <div style={{ height:1, background:'var(--border)', margin:'1rem 0' }} />
-          <Link href="/employee/dashboard" style={{ display:'flex', alignItems:'center', gap:6, width:'fit-content', background:'transparent', color:'var(--red-primary)', border:'1px solid rgba(198,40,40,0.3)', borderRadius:5, padding:'6px 12px', fontSize:'0.78rem', fontWeight:600, textDecoration:'none' }}><ArrowLeft size={13}/> Back to My Tickets</Link>
-        </div>
+          </div>
       </div>
+
+      {/* ✅ FEEDBACK - only after resolved/closed */}
+      {(ticket.status === 'resolved' || ticket.status === 'closed') && (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div style={{ padding:'0.8rem 1.2rem', borderBottom:'1px solid var(--border)', background:'var(--bg-mid)' }}>
+            <span style={{ fontSize:'0.83rem', fontWeight:600, display:'flex', alignItems:'center', gap:6 }}><Star size={14}/> Rate This Resolution</span>
+          </div>
+          <div style={{ padding:'1.1rem' }}>
+            {ticket.feedback?.submitted_at ? (
+              <div style={{ display:'flex', alignItems:'center', gap:10, color:'#2e7d32', fontSize:'0.85rem' }}>
+                <CheckCircle2 size={18}/>
+                <div>
+                  <div style={{ fontWeight:600 }}>Thanks for your feedback!</div>
+                  <div style={{ display:'flex', gap:2, marginTop:4 }}>
+                    {[1,2,3,4,5].map(i => (
+                      <Star key={i} size={16} fill={i <= (ticket.feedback.rating || 0) ? '#f59e0b' : 'none'} color={i <= (ticket.feedback.rating || 0) ? '#f59e0b' : 'var(--border)'} />
+                    ))}
+                  </div>
+                  {ticket.feedback.comment && <div style={{ color:'var(--text-muted)', marginTop:6, fontSize:'0.8rem' }}>{ticket.feedback.comment}</div>}
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={submitFeedback}>
+                <div style={{ marginBottom:'0.8rem' }}>
+                  <div style={{ fontSize:'0.62rem', textTransform:'uppercase', letterSpacing:'0.08em', color:'var(--text-muted)', marginBottom:6 }}>How was the support?</div>
+                  <div style={{ display:'flex', gap:4 }}>
+                    {[1,2,3,4,5].map(i => (
+                      <button
+                        type="button"
+                        key={i}
+                        onClick={() => setRating(i)}
+                        style={{ background:'none', border:'none', cursor:'pointer', padding:2 }}
+                      >
+                        <Star size={26} fill={i <= rating ? '#f59e0b' : 'none'} color={i <= rating ? '#f59e0b' : 'var(--border)'} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={feedbackComment}
+                  onChange={(e) => setFeedbackComment(e.target.value)}
+                  placeholder="Any additional comments? (optional)"
+                  style={{ width:'100%', minHeight:70, padding:'8px 10px', marginBottom:'0.8rem', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text-main)', fontSize:'0.82rem', boxSizing:'border-box' }}
+                />
+                <button
+                  type="submit"
+                  disabled={!rating || submittingFeedback}
+                  style={{ padding:'8px 18px', borderRadius:6, border:'none', background:'var(--red-primary)', color:'#fff', cursor: !rating ? 'not-allowed' : 'pointer', fontSize:'0.82rem', fontWeight:600, opacity: !rating || submittingFeedback ? 0.6 : 1 }}
+                >
+                  {submittingFeedback ? 'Submitting...' : 'Submit Feedback'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }

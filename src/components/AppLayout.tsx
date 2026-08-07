@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Moon, Sun, Menu, X, LayoutDashboard, Ticket, Monitor, Users, BarChart3, Bell, UserCircle, Plus, LogOut, Tv } from 'lucide-react'
+import { Moon, Sun, Menu, X, LayoutDashboard, Ticket, Monitor, Users, BarChart3, Bell, UserCircle, Plus, LogOut, Tv, Star } from 'lucide-react'
 import api from '../lib/api'
 import { getUser, isLoggedIn, clearAuth } from '../lib/auth'
 
@@ -105,9 +105,11 @@ export default function AppLayout({ children, role }: LayoutProps) {
     { href: '/employee/raise-ticket', icon: <Plus size={16}/>, label: 'Raise Ticket' },
     { href: '/admin/assets', icon: <Monitor size={16}/>, label: 'Assets' },
     { href: '/admin/employees', icon: <Users size={16}/>, label: 'Employees' },
+    { href: '/admin/feedback', icon: <Star size={16}/>, label: 'Feedback' },
     { href: '/admin/reports', icon: <BarChart3 size={16}/>, label: 'Monthly Report' },
     { href: '/admin/notifications', icon: <Bell size={16}/>, label: 'Notifications', badge: notifCount },
   ]
+
   const empSide = [
     { href: '/employee/dashboard', icon: <LayoutDashboard size={16}/>, label: 'My Tickets' },
     { href: '/employee/raise-ticket', icon: <Plus size={16}/>, label: 'Raise Ticket' },

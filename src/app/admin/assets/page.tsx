@@ -5,7 +5,7 @@ import { PageHeader, Alert, Modal, StatCard } from '@/components/ui'
 import api from '@/lib/api'
 import { Search, AlertTriangle, UserPlus, Save, Plus, Pencil, Unlock, Trash2, Package, Monitor, Boxes } from 'lucide-react'
 
-const CATS = ['Laptop','Desktop','Monitor','Keyboard','Mouse','Printer','Phone','Server','Network Device','Other']
+const CATS = ['Laptop','CPU','Monitor','Keyboard','Mouse','Printer','Phone','Server','Network Device','Tablet','Router','UPS','Cable','Other']
 
 export default function AdminAssets() {
   const [assets,       setAssets]       = useState<any[]>([])
@@ -18,6 +18,7 @@ export default function AdminAssets() {
   const [statusF,      setStatusF]      = useState('')
   const [q,            setQ]            = useState('')
   const [loading,      setLoading]      = useState(false)
+  const [showReplace, setShowReplace] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -200,6 +201,72 @@ export default function AdminAssets() {
       </form>
     )
   }
+const ReplaceAssetCodeForm = () => {
+  const [find, setFind] = useState("");
+  const [replace, setReplace] = useState("");
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!find.trim() || !replace.trim()) {
+      setMsg({ type: 'error', text: 'Please fill both Find and Replace fields.' });
+      return;
+    }
+
+    try {
+      await api.patch("/assets/find-replace", {
+        find: find.trim(),
+        replace: replace.trim(),
+      });
+      setMsg({
+        type: "success",
+        text: "Asset Codes updated successfully.",
+      });
+
+      setShowReplace(false);
+      load();
+    } catch (err: any) {
+      setMsg({
+        type: "error",
+        text: err.response?.data?.error || "Replace failed.",
+      });
+    }
+  };
+
+  return (
+    <form onSubmit={submit}>
+    <FG label="Find Category">
+  <select style={inp} value={find} onChange={(e) => setFind(e.target.value)}>
+    <option value="">— Select Category —</option>
+    {CATS.map(c => <option key={c}>{c}</option>)}
+  </select>
+</FG>
+
+<FG label="Replace With Category">
+  <select style={inp} value={replace} onChange={(e) => setReplace(e.target.value)}>
+    <option value="">— Select Category —</option>
+    {CATS.map(c => <option key={c}>{c}</option>)}
+  </select>
+</FG>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 15 }}>
+        <button
+          type="submit"
+          style={{
+            padding: "8px 18px",
+            border: "none",
+            borderRadius: 5,
+            background: "#1565c0",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          Replace All
+        </button>
+      </div>
+    </form>
+  );
+};
 
   const AssetForm = ({existing}:{existing?:any}) => {
     const [d, setD] = useState({
@@ -322,6 +389,18 @@ export default function AdminAssets() {
             fontSize:'0.73rem', padding:'5px 12px', borderRadius:20, cursor:'pointer'
           }}>{s||'All'}</button>
         ))}
+        <button
+  onClick={() => setShowReplace(true)}
+  style={{
+    padding:'8px 18px',
+    borderRadius:5,
+    border:'1px solid var(--border)',
+    background:'var(--bg-card)',
+    cursor:'pointer'
+  }}
+>
+  Find & Replace
+</button>
         <button onClick={()=>setShowAdd(true)} style={{display:'flex', alignItems:'center', gap:6, padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
   <Plus size={15}/> Add New Asset
 </button>
@@ -439,6 +518,14 @@ export default function AdminAssets() {
           }
         </div>
       </div>
+
+<Modal
+  open={showReplace}
+  onClose={() => setShowReplace(false)}
+  title="Find & Replace Asset Code"
+>
+  <ReplaceAssetCodeForm />
+</Modal>
 
       {/* Add Modal */}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add New Asset">
