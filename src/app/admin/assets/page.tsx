@@ -3,205 +3,139 @@ import { useEffect, useState } from 'react'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert, Modal, StatCard } from '@/components/ui'
 import api from '@/lib/api'
-import { Search, AlertTriangle, UserPlus, Save, Plus, Pencil, Unlock, Trash2, Package, Monitor, Boxes } from 'lucide-react'
+import { Search, AlertTriangle, UserPlus, Save, Plus, Pencil, Unlock, Trash2 } from 'lucide-react'
 
 const CATS = ['Laptop','CPU','Monitor','Keyboard','Mouse','Printer','Phone','Server','Network Device','Tablet','Router','UPS','Cable','Other']
 
-export default function AdminAssets() {
-  const [assets,       setAssets]       = useState<any[]>([])
-  const [employees,    setEmployees]    = useState<any[]>([])
-  const [stats,        setStats]        = useState<any>({ total:0, available:0, assigned:0, repair:0 })
-  const [msg,          setMsg]          = useState<{type:'success'|'error',text:string}|null>(null)
-  const [showAdd,      setShowAdd]      = useState(false)
-  const [editAsset,    setEditAsset]    = useState<any>(null)
-  const [assignAsset,  setAssignAsset]  = useState<any>(null)   // ✅ NEW: for assign modal
-  const [statusF,      setStatusF]      = useState('')
-  const [q,            setQ]            = useState('')
-  const [loading,      setLoading]      = useState(false)
-  const [showReplace, setShowReplace] = useState(false)
+const inp = {
+  width:'100%', padding:'10px 12px', borderRadius:5,
+  border:'1px solid var(--border)', background:'var(--bg-input)',
+  color:'var(--text-main)', fontSize:'0.85rem'
+}
 
-  const load = async () => {
-    setLoading(true)
-    try {
-      const params: any = {}
-      if (statusF) params.status = statusF
-      if (q)       params.q      = q
-      const { data } = await api.get('/assets', { params })
-      setAssets(data.assets || [])
-      setStats(data.stats   || { total:0, available:0, assigned:0, repair:0 })
-    } catch (e:any) {
-      setMsg({ type:'error', text: e.response?.data?.error || 'Failed to load assets' })
-      setAssets([])
-    } finally {
-      setLoading(false)
+// ✅ MOVED OUTSIDE: FG component
+const FG = ({label,children}:{label:string,children:React.ReactNode}) => (
+  <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:'0.9rem'}}>
+    <label style={{fontSize:'0.7rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)'}}>{label}</label>
+    {children}
+  </div>
+)
+
+// ✅ MOVED OUTSIDE: TH component
+const TH = ({c}:{c:string}) => (
+  <th style={{fontSize:'0.67rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-muted)',padding:'10px 1.2rem',textAlign:'left',borderBottom:'1px solid var(--border)',background:'rgba(198,40,40,0.04)',whiteSpace:'nowrap'}}>{c}</th>
+)
+
+// ✅ MOVED OUTSIDE: statusColor
+const statusColor: Record<string,string> = {
+  Available:'#2e7d32', Assigned:'#1565c0',
+  'Under Repair':'#e65100', Damaged:'#c62828', Retired:'#757575'
+}
+
+// ✅ MOVED OUTSIDE + PROPS ADDED: AssignForm
+const AssignForm = ({ asset, employees, onAssign, onCancel, setMsg }: any) => {
+  const [selectedEmployee, setSelectedEmployee] = useState('')
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedEmployee) {
+      setMsg({ type: 'error', text: 'Please select an employee' })
+      return
     }
+    onAssign(asset._id || asset.id, selectedEmployee)
   }
 
-  // ✅ NEW: Load employees for the assign dropdown
-  const loadEmployees = async () => {
-    try {
-      const { data } = await api.get('/employees')
-      setEmployees(data.employees || data || [])
-    } catch (e:any) {
-      console.error('Failed to load employees', e)
-      setEmployees([])
-    }
-  }
-
-  useEffect(() => { load() }, [statusF])
-  useEffect(() => { loadEmployees() }, [])
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this asset?')) return
-    try {
-      await api.delete(`/assets/${id}`)
-      setMsg({ type:'success', text:'Asset deleted.' })
-      load()
-    } catch (e:any) {
-      setMsg({ type:'error', text: e.response?.data?.error || 'Delete failed' })
-    }
-  }
-
-  // ✅ NEW: Handle asset assignment
-  const handleAssign = async (assetId: string, employeeId: string) => {
-    try {
-      await api.patch(`/assets/${assetId}/assign`, { employee_id: employeeId })
-      setMsg({ type:'success', text:'Asset assigned successfully!' })
-      setAssignAsset(null)
-      load()
-    } catch (e:any) {
-      setMsg({ type:'error', text: e.response?.data?.error || 'Assignment failed' })
-    }
-  }
-
-  // ✅ NEW: Handle unassign
-  const handleUnassign = async (assetId: string) => {
-    if (!confirm('Unassign this asset from the employee?')) return
-    try {
-      await api.patch(`/assets/${assetId}/unassign`)
-      setMsg({ type:'success', text:'Asset unassigned successfully!' })
-      load()
-    } catch (e:any) {
-      setMsg({ type:'error', text: e.response?.data?.error || 'Unassign failed' })
-    }
-  }
-
-  const inp = {
-    width:'100%', padding:'10px 12px', borderRadius:5,
-    border:'1px solid var(--border)', background:'var(--bg-input)',
-    color:'var(--text-main)', fontSize:'0.85rem'
-  }
-
-  const FG = ({label,children}:{label:string,children:React.ReactNode}) => (
-    <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:'0.9rem'}}>
-      <label style={{fontSize:'0.7rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)'}}>{label}</label>
-      {children}
-    </div>
-  )
-
-  // ✅ NEW: Assign Form Component
-  const AssignForm = ({ asset }: { asset: any }) => {
-    const [selectedEmployee, setSelectedEmployee] = useState('')
-
-    const onSubmit = (e: React.FormEvent) => {
-      e.preventDefault()
-      if (!selectedEmployee) {
-        setMsg({ type: 'error', text: 'Please select an employee' })
-        return
-      }
-      handleAssign(asset._id || asset.id, selectedEmployee)
-    }
-
-    return (
-      <form onSubmit={onSubmit} style={{ maxWidth: 500 }}>
-        {/* Show asset info */}
-        <div style={{
-          padding: '1rem',
-          background: 'rgba(198,40,40,0.04)',
-          borderRadius: 8,
-          border: '1px solid var(--border)',
-          marginBottom: '1.2rem'
-        }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Asset Code</span>
-              <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--red-primary)', margin: '2px 0 0' }}>{asset.asset_code}</p>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Asset Name</span>
-              <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', margin: '2px 0 0' }}>{asset.name}</p>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Category</span>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-sub)', margin: '2px 0 0' }}>{asset.category}</p>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Status</span>
-              <p style={{ fontSize: '0.85rem', color: statusColor[asset.status] || 'var(--text-muted)', fontWeight: 600, margin: '2px 0 0' }}>{asset.status}</p>
-            </div>
+  return (
+    <form onSubmit={onSubmit} style={{ maxWidth: 500 }}>
+      <div style={{
+        padding: '1rem',
+        background: 'rgba(198,40,40,0.04)',
+        borderRadius: 8,
+        border: '1px solid var(--border)',
+        marginBottom: '1.2rem'
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+          <div>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Asset Code</span>
+            <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--red-primary)', margin: '2px 0 0' }}>{asset.asset_code}</p>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Asset Name</span>
+            <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', margin: '2px 0 0' }}>{asset.name}</p>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Category</span>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-sub)', margin: '2px 0 0' }}>{asset.category}</p>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Status</span>
+            <p style={{ fontSize: '0.85rem', color: statusColor[asset.status] || 'var(--text-muted)', fontWeight: 600, margin: '2px 0 0' }}>{asset.status}</p>
           </div>
         </div>
+      </div>
 
-        <FG label="Select Employee *">
-          <select
-            required
-            style={inp}
-            value={selectedEmployee}
-            onChange={e => setSelectedEmployee(e.target.value)}
-          >
-            <option value="">— Choose an Employee —</option>
-            {employees.map((emp: any) => (
-              <option key={emp._id || emp.id} value={emp._id || emp.id}>
-                {emp.name || emp.full_name} {emp.email ? `(${emp.email})` : ''} {emp.department ? `- ${emp.department}` : ''}
-              </option>
-            ))}
-          </select>
-        </FG>
+      <FG label="Select Employee *">
+        <select
+          required
+          style={inp}
+          value={selectedEmployee}
+          onChange={e => setSelectedEmployee(e.target.value)}
+        >
+          <option value="">— Choose an Employee —</option>
+          {employees.map((emp: any) => (
+            <option key={emp._id || emp.id} value={emp._id || emp.id}>
+              {emp.name || emp.full_name} {emp.email ? `(${emp.email})` : ''} {emp.department ? `- ${emp.department}` : ''}
+            </option>
+          ))}
+        </select>
+      </FG>
 
-        {employees.length === 0 && (
-  <div style={{
-    padding: '0.8rem',
-    background: 'rgba(198,40,40,0.06)',
-    borderRadius: 6,
-    border: '1px solid rgba(198,40,40,0.2)',
-    fontSize: '0.78rem',
-    color: '#c62828',
-    marginBottom: '1rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8
-  }}>
-    <AlertTriangle size={15}/> No employees found. Please add employees first.
-  </div>
-)}
-
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button
-            type="button"
-            onClick={() => setAssignAsset(null)}
-            style={{
-              padding: '8px 18px', borderRadius: 5,
-              border: '1px solid rgba(198,40,40,0.3)',
-              background: 'transparent', color: 'var(--red-primary)',
-              cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600
-            }}
-          >
-            Cancel
-          </button>
-          <button type="submit" disabled={employees.length === 0} style={{
-  display:'flex', alignItems:'center', gap:6,
-  padding: '8px 18px', borderRadius: 5, border: 'none',
-  background: employees.length === 0 ? '#ccc' : '#1565c0',
-  color: '#fff', cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
-  fontSize: '0.8rem', fontWeight: 600
-}}>
-  <UserPlus size={15}/> Assign to Employee
-</button>
+      {employees.length === 0 && (
+        <div style={{
+          padding: '0.8rem',
+          background: 'rgba(198,40,40,0.06)',
+          borderRadius: 6,
+          border: '1px solid rgba(198,40,40,0.2)',
+          fontSize: '0.78rem',
+          color: '#c62828',
+          marginBottom: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }}>
+          <AlertTriangle size={15}/> No employees found. Please add employees first.
         </div>
-      </form>
-    )
-  }
-const ReplaceAssetCodeForm = () => {
+      )}
+
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: '1rem' }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            padding: '8px 18px', borderRadius: 5,
+            border: '1px solid rgba(198,40,40,0.3)',
+            background: 'transparent', color: 'var(--red-primary)',
+            cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600
+          }}
+        >
+          Cancel
+        </button>
+        <button type="submit" disabled={employees.length === 0} style={{
+          display:'flex', alignItems:'center', gap:6,
+          padding: '8px 18px', borderRadius: 5, border: 'none',
+          background: employees.length === 0 ? '#ccc' : '#1565c0',
+          color: '#fff', cursor: employees.length === 0 ? 'not-allowed' : 'pointer',
+          fontSize: '0.8rem', fontWeight: 600
+        }}>
+          <UserPlus size={15}/> Assign to Employee
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// ✅ MOVED OUTSIDE + PROPS ADDED: ReplaceAssetCodeForm
+const ReplaceAssetCodeForm = ({ onSuccess, onCancel, setMsg }: any) => {
   const [find, setFind] = useState("");
   const [replace, setReplace] = useState("");
 
@@ -223,8 +157,8 @@ const ReplaceAssetCodeForm = () => {
         text: "Asset Codes updated successfully.",
       });
 
-      setShowReplace(false);
-      load();
+      onSuccess();
+      onCancel();
     } catch (err: any) {
       setMsg({
         type: "error",
@@ -235,21 +169,37 @@ const ReplaceAssetCodeForm = () => {
 
   return (
     <form onSubmit={submit}>
-    <FG label="Find Category">
-  <select style={inp} value={find} onChange={(e) => setFind(e.target.value)}>
-    <option value="">— Select Category —</option>
-    {CATS.map(c => <option key={c}>{c}</option>)}
-  </select>
-</FG>
+      <FG label="Find Category">
+        <select style={inp} value={find} onChange={(e) => setFind(e.target.value)}>
+          <option value="">— Select Category —</option>
+          {CATS.map(c => <option key={c}>{c}</option>)}
+        </select>
+      </FG>
 
-<FG label="Replace With Category">
-  <select style={inp} value={replace} onChange={(e) => setReplace(e.target.value)}>
-    <option value="">— Select Category —</option>
-    {CATS.map(c => <option key={c}>{c}</option>)}
-  </select>
-</FG>
+      <FG label="Replace With Category">
+        <select style={inp} value={replace} onChange={(e) => setReplace(e.target.value)}>
+          <option value="">— Select Category —</option>
+          {CATS.map(c => <option key={c}>{c}</option>)}
+        </select>
+      </FG>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 15 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 15, gap: 10 }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            padding: "8px 18px",
+            border: "1px solid rgba(198,40,40,0.3)",
+            borderRadius: 5,
+            background: 'transparent',
+            color: 'var(--red-primary)',
+            cursor: "pointer",
+            fontSize: '0.8rem',
+            fontWeight: 600
+          }}
+        >
+          Cancel
+        </button>
         <button
           type="submit"
           style={{
@@ -259,6 +209,8 @@ const ReplaceAssetCodeForm = () => {
             background: "#1565c0",
             color: "#fff",
             cursor: "pointer",
+            fontSize: '0.8rem',
+            fontWeight: 600
           }}
         >
           Replace All
@@ -268,92 +220,180 @@ const ReplaceAssetCodeForm = () => {
   );
 };
 
-  const AssetForm = ({existing}:{existing?:any}) => {
-    const [d, setD] = useState({
-  asset_code: existing?.asset_code || '',
-  name: existing?.name || '',
-  category: existing?.category || '',
-  brand: existing?.brand || '',
-  model: existing?.model || '',
-  serial_no: existing?.serial_no || '',
-  purchase_date: existing?.purchase_date ? existing.purchase_date.split('T')[0] : '',
-  warranty_until: existing?.warranty_until ? existing.warranty_until.split('T')[0] : '',
-  location: existing?.location || '',
-  notes: existing?.notes || '',
-  status: existing?.status || 'Available'
-})
+// ✅ MOVED OUTSIDE + PROPS ADDED: AssetForm
+const AssetForm = ({ existing, onSuccess, onCancel, setMsg }: any) => {
+  const [d, setD] = useState({
+    asset_code: existing?.asset_code || '',
+    name: existing?.name || '',
+    category: existing?.category || '',
+    brand: existing?.brand || '',
+    model: existing?.model || '',
+    serial_no: existing?.serial_no || '',
+    purchase_date: existing?.purchase_date ? existing.purchase_date.split('T')[0] : '',
+    warranty_until: existing?.warranty_until ? existing.warranty_until.split('T')[0] : '',
+    location: existing?.location || '',
+    notes: existing?.notes || '',
+    status: existing?.status || 'Available'
+  })
 
-    const submit = async (e:React.FormEvent) => {
-      e.preventDefault()
-      try {
-        if (existing) {
-          await api.patch(`/assets/${existing._id || existing.id}`, d)
-          setMsg({ type:'success', text:'Asset updated!' })
-          setEditAsset(null)
-        } else {
-          await api.post('/assets', d)
-          setMsg({ type:'success', text:'Asset added!' })
-          setShowAdd(false)
-        }
-        load()
-      } catch (err:any) {
-        setMsg({ type:'error', text: err.response?.data?.error || 'Failed' })
+  const submit = async (e:React.FormEvent) => {
+    e.preventDefault()
+    
+    // ✅ NEW: Date validation
+    if (d.purchase_date && d.warranty_until) {
+      if (new Date(d.purchase_date) > new Date(d.warranty_until)) {
+        setMsg({ type:'error', text:'Warranty date must be after purchase date' })
+        return
       }
     }
 
-    return (
-      <form onSubmit={submit} style={{maxWidth:600}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-          <FG label="Asset Code *">
-            <input required style={inp} value={d.asset_code} onChange={e=>setD({...d,asset_code:e.target.value})} placeholder="ASSET-001"/>
-          </FG>
-          <FG label="Category *">
-            <select required style={inp} value={d.category} onChange={e=>setD({...d,category:e.target.value})}>
-              <option value="">— Select —</option>
-              {CATS.map(c=><option key={c}>{c}</option>)}
-            </select>
-          </FG>
-        </div>
-        <FG label="Asset Name *">
-          <input required style={inp} value={d.name} onChange={e=>setD({...d,name:e.target.value})} placeholder="Dell Laptop"/>
-        </FG>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-          <FG label="Brand"><input style={inp} value={d.brand} onChange={e=>setD({...d,brand:e.target.value})} placeholder="Dell"/></FG>
-          <FG label="Model"><input style={inp} value={d.model} onChange={e=>setD({...d,model:e.target.value})} placeholder="Latitude 5520"/></FG>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-          <FG label="Serial No"><input style={inp} value={d.serial_no} onChange={e=>setD({...d,serial_no:e.target.value})}/></FG>
-          <FG label="Location"><input style={inp} value={d.location} onChange={e=>setD({...d,location:e.target.value})} placeholder="Office Floor 2"/></FG>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-          <FG label="Purchase Date"><input type="date" style={inp} value={d.purchase_date} onChange={e=>setD({...d,purchase_date:e.target.value})}/></FG>
-          <FG label="Warranty Until"><input type="date" style={inp} value={d.warranty_until} onChange={e=>setD({...d,warranty_until:e.target.value})}/></FG>
-        </div>
-        <FG label="Status">
-          <select style={inp} value={d.status} onChange={e=>setD({...d,status:e.target.value})}>
-            {['Available','Assigned','Under Repair','Damaged','Retired'].map(s=><option key={s}>{s}</option>)}
-          </select>
-        </FG>
-        <FG label="Notes">
-          <textarea style={{...inp, minHeight:60, resize:'vertical' as const}} value={d.notes} onChange={e=>setD({...d,notes:e.target.value})}/>
-        </FG>
-        <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
-          <button type="button" onClick={()=>{setShowAdd(false);setEditAsset(null)}} style={{padding:'8px 18px',borderRadius:5,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
-          <button type="submit" style={{display:'flex', alignItems:'center', gap:6, padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
-  <Save size={15}/> {existing ? 'Save Changes' : 'Add Asset'}
-</button>
-        </div>
-      </form>
-    )
+    try {
+      if (existing) {
+        await api.patch(`/assets/${existing._id || existing.id}`, d)
+        setMsg({ type:'success', text:'Asset updated!' })
+        onCancel()
+      } else {
+        await api.post('/assets', d)
+        setMsg({ type:'success', text:'Asset added!' })
+        onCancel()
+      }
+      onSuccess()
+    } catch (err:any) {
+      setMsg({ type:'error', text: err.response?.data?.error || 'Failed' })
+    }
   }
 
-  const TH = ({c}:{c:string}) => (
-    <th style={{fontSize:'0.67rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-muted)',padding:'10px 1.2rem',textAlign:'left',borderBottom:'1px solid var(--border)',background:'rgba(198,40,40,0.04)',whiteSpace:'nowrap'}}>{c}</th>
+  return (
+    <form onSubmit={submit} style={{maxWidth:600}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+        <FG label="Asset Code *">
+          <input required style={inp} value={d.asset_code} onChange={e=>setD({...d,asset_code:e.target.value})} placeholder="ASSET-001"/>
+        </FG>
+        <FG label="Category *">
+          <select required style={inp} value={d.category} onChange={e=>setD({...d,category:e.target.value})}>
+            <option value="">— Select —</option>
+            {CATS.map(c=><option key={c}>{c}</option>)}
+          </select>
+        </FG>
+      </div>
+      <FG label="Asset Name *">
+        <input required style={inp} value={d.name} onChange={e=>setD({...d,name:e.target.value})} placeholder="Dell Laptop"/>
+      </FG>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+        <FG label="Brand"><input style={inp} value={d.brand} onChange={e=>setD({...d,brand:e.target.value})} placeholder="Dell"/></FG>
+        <FG label="Model"><input style={inp} value={d.model} onChange={e=>setD({...d,model:e.target.value})} placeholder="Latitude 5520"/></FG>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+        <FG label="Serial No"><input style={inp} value={d.serial_no} onChange={e=>setD({...d,serial_no:e.target.value})}/></FG>
+        <FG label="Location"><input style={inp} value={d.location} onChange={e=>setD({...d,location:e.target.value})} placeholder="Office Floor 2"/></FG>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+        <FG label="Purchase Date"><input type="date" style={inp} value={d.purchase_date} onChange={e=>setD({...d,purchase_date:e.target.value})}/></FG>
+        <FG label="Warranty Until"><input type="date" style={inp} value={d.warranty_until} onChange={e=>setD({...d,warranty_until:e.target.value})}/></FG>
+      </div>
+      <FG label="Status">
+        <select style={inp} value={d.status} onChange={e=>setD({...d,status:e.target.value})}>
+          {['Available','Assigned','Under Repair','Damaged','Retired'].map(s=><option key={s}>{s}</option>)}
+        </select>
+      </FG>
+      <FG label="Notes">
+        <textarea style={{...inp, minHeight:60, resize:'vertical' as const}} value={d.notes} onChange={e=>setD({...d,notes:e.target.value})}/>
+      </FG>
+      <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+        <button type="button" onClick={onCancel} style={{padding:'8px 18px',borderRadius:5,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
+        <button type="submit" style={{display:'flex', alignItems:'center', gap:6, padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
+          <Save size={15}/> {existing ? 'Save Changes' : 'Add Asset'}
+        </button>
+      </div>
+    </form>
   )
+}
 
-  const statusColor: Record<string,string> = {
-    Available:'#2e7d32', Assigned:'#1565c0',
-    'Under Repair':'#e65100', Damaged:'#c62828', Retired:'#757575'
+// ✅ MAIN COMPONENT: Clean & lean
+export default function AdminAssets() {
+  const [assets,       setAssets]       = useState<any[]>([])
+  const [employees,    setEmployees]    = useState<any[]>([])
+  const [stats,        setStats]        = useState<any>({ total:0, available:0, assigned:0, repair:0 })
+  const [msg,          setMsg]          = useState<{type:'success'|'error',text:string}|null>(null)
+  const [showAdd,      setShowAdd]      = useState(false)
+  const [editAsset,    setEditAsset]    = useState<any>(null)
+  const [assignAsset,  setAssignAsset]  = useState<any>(null)
+  const [statusF,      setStatusF]      = useState('')
+  const [q,            setQ]            = useState('')
+  const [loading,      setLoading]      = useState(false)
+  const [showReplace,  setShowReplace]  = useState(false)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const params: any = {}
+      if (statusF) params.status = statusF
+      if (q)       params.q      = q
+      const { data } = await api.get('/assets', { params })
+      setAssets(data.assets || [])
+      setStats(data.stats   || { total:0, available:0, assigned:0, repair:0 })
+    } catch (e:any) {
+      setMsg({ type:'error', text: e.response?.data?.error || 'Failed to load assets' })
+      setAssets([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadEmployees = async () => {
+    try {
+      const { data } = await api.get('/employees')
+      setEmployees(data.employees || data || [])
+    } catch (e:any) {
+      console.error('Failed to load employees', e)
+      setEmployees([])
+    }
+  }
+
+  useEffect(() => { load() }, [statusF, q])
+  useEffect(() => { loadEmployees() }, [])
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this asset?')) return
+    try {
+      await api.delete(`/assets/${id}`)
+      setMsg({ type:'success', text:'Asset deleted.' })
+      load()
+    } catch (e:any) {
+      setMsg({ type:'error', text: e.response?.data?.error || 'Delete failed' })
+    }
+  }
+
+  const handleAssign = async (assetId: string, employeeId: string) => {
+    try {
+      await api.patch(`/assets/${assetId}/assign`, { employee_id: employeeId })
+      setMsg({ type:'success', text:'Asset assigned successfully!' })
+      setAssignAsset(null)
+      load()
+    } catch (e:any) {
+      setMsg({ type:'error', text: e.response?.data?.error || 'Assignment failed' })
+    }
+  }
+
+  const handleUnassign = async (assetId: string) => {
+    if (!confirm('Unassign this asset from the employee?')) return
+    try {
+      await api.patch(`/assets/${assetId}/unassign`)
+      setMsg({ type:'success', text:'Asset unassigned successfully!' })
+      load()
+    } catch (e:any) {
+      setMsg({ type:'error', text: e.response?.data?.error || 'Unassign failed' })
+    }
+  }
+
+  // ✅ FIXED: Proper date comparison helper
+  const isWarrantyExpired = (dateStr: string | undefined) => {
+    if (!dateStr) return false
+    const today = new Date()
+    today.setHours(0,0,0,0)
+    const warranty = new Date(dateStr)
+    warranty.setHours(0,0,0,0)
+    return warranty < today
   }
 
   return (
@@ -372,7 +412,7 @@ const ReplaceAssetCodeForm = () => {
       {/* Filter + Add Button */}
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'1rem',gap:10,alignItems:'center',flexWrap:'wrap'}}>
         <div style={{position:'relative'}}>
-  <Search size={14} color="var(--text-muted)" style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)'}}/>
+          <Search size={14} color="var(--text-muted)" style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)'}}/>
           <input
             value={q}
             onChange={e=>setQ(e.target.value)}
@@ -381,7 +421,8 @@ const ReplaceAssetCodeForm = () => {
             style={{padding:'8px 12px 8px 32px',borderRadius:5,border:'1px solid var(--border)',background:'var(--bg-input)',color:'var(--text-main)',fontSize:'0.84rem'}}
           />
         </div>
-        {['','Available','Assigned','Under Repair','Damaged'].map(s=>(
+        {/* ✅ FIXED: Added 'Retired' to filter buttons */}
+        {['','Available','Assigned','Under Repair','Damaged','Retired'].map(s=>(
           <button key={s||'all'} onClick={()=>setStatusF(s)} style={{
             background: statusF===s ? 'var(--red-glow)' : 'var(--bg-card)',
             color:      statusF===s ? 'var(--red-primary)' : 'var(--text-sub)',
@@ -392,18 +433,20 @@ const ReplaceAssetCodeForm = () => {
         <button
   onClick={() => setShowReplace(true)}
   style={{
-    padding:'8px 18px',
-    borderRadius:5,
+    padding:'5px 12px',
+    borderRadius:20,
     border:'1px solid var(--border)',
     background:'var(--bg-card)',
+    color:'var(--text-sub)',
+    fontSize:'0.73rem',
     cursor:'pointer'
   }}
 >
   Find & Replace
 </button>
         <button onClick={()=>setShowAdd(true)} style={{display:'flex', alignItems:'center', gap:6, padding:'8px 18px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
-  <Plus size={15}/> Add New Asset
-</button>
+          <Plus size={15}/> Add New Asset
+        </button>
       </div>
 
       {/* Assets Table */}
@@ -416,7 +459,6 @@ const ReplaceAssetCodeForm = () => {
             ? <div style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Loading...</div>
             : <table style={{width:'100%',borderCollapse:'collapse'}}>
                 <thead>
-                  {/* ✅ Added "Assigned To" column */}
                   <tr>
                     <TH c="Code"/>
                     <TH c="Asset Name"/>
@@ -433,7 +475,7 @@ const ReplaceAssetCodeForm = () => {
                     ? <tr><td colSpan={8} style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>No assets found.</td></tr>
                     : assets.map((a:any) => (
                       <tr key={a._id || a.id} style={{borderBottom:'1px solid var(--border-mid)'}}>
-                        <td style={{padding:'12px 1.2rem',fontFamily:'IBM Plex Mono',color:'var(--red-primary)',fontSize:'0.77rem'}}>{a.asset_code}</td>
+                        <td style={{padding:'12px 1.2rem',fontFamily:'IBM Plex Mono',color:'var(--red-primary)',fontSize:'0.77rem', whiteSpace:'nowrap'}}>{a.asset_code}</td>
                         <td style={{padding:'12px 1.2rem',fontSize:'0.83rem',fontWeight:500,color:'var(--text-main)'}}>{a.name}</td>
                         <td style={{padding:'12px 1.2rem',fontSize:'0.8rem',color:'var(--text-sub)'}}>{a.category}</td>
                         <td style={{padding:'12px 1.2rem',fontSize:'0.78rem',color:'var(--text-muted)'}}>{[a.brand,a.model].filter(Boolean).join(' / ')||'—'}</td>
@@ -444,7 +486,6 @@ const ReplaceAssetCodeForm = () => {
                             background: `${statusColor[a.status] || '#888'}18`
                           }}>{a.status}</span>
                         </td>
-                        {/* ✅ NEW: Assigned To column */}
                         <td style={{padding:'12px 1.2rem',fontSize:'0.78rem',color:'var(--text-sub)'}}>
                           {a.assigned_to_name
                             ? (
@@ -463,51 +504,50 @@ const ReplaceAssetCodeForm = () => {
                             : <span style={{color:'var(--text-muted)'}}>—</span>
                           }
                         </td>
-                        <td style={{padding:'12px 1.2rem',fontSize:'0.75rem',color:a.warranty_until&&new Date(a.warranty_until)<new Date()?'#c62828':'var(--text-muted)'}}>
+                        {/* ✅ FIXED: Proper date comparison */}
+                        <td style={{padding:'12px 1.2rem',fontSize:'0.75rem',color:isWarrantyExpired(a.warranty_until)?'#c62828':'var(--text-muted)'}}>
                           {a.warranty_until ? new Date(a.warranty_until).toLocaleDateString('en-GB') : '—'}
                         </td>
-                        {/* ✅ UPDATED: Actions with Assign/Unassign buttons */}
                         <td style={{padding:'12px 1.2rem'}}>
-                          <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-                            {/* Assign button — only for Available assets */}
+                          <div style={{display:'flex',gap:4,flexWrap:'nowrap'}}>
                             {a.status === 'Available' && (
-  <button onClick={() => setAssignAsset(a)} style={{
-    display:'flex', alignItems:'center', gap:4,
-    padding:'3px 8px', borderRadius:5, border:'none',
-    background:'#1565c0', color:'#fff',
-    cursor:'pointer', fontSize:'0.68rem', fontWeight:600
-  }}>
-    <UserPlus size={12}/> Assign
-  </button>
-)}
-{a.status === 'Assigned' && (
-  <button onClick={() => handleUnassign(a._id || a.id)} style={{
-    display:'flex', alignItems:'center', gap:4,
-    padding:'3px 8px', borderRadius:5,
-    border:'1px solid #e65100',
-    background:'rgba(230,81,0,0.08)', color:'#e65100',
-    cursor:'pointer', fontSize:'0.68rem', fontWeight:600
-  }}>
-    <Unlock size={12}/> Unassign
-  </button>
-)}
-<button onClick={() => setEditAsset(a)} style={{
-  display:'flex', alignItems:'center', gap:4,
-  padding:'3px 8px', borderRadius:5, border:'none',
-  background:'var(--red-primary)', color:'#fff',
-  cursor:'pointer', fontSize:'0.68rem', fontWeight:600
-}}>
-  <Pencil size={12}/> Edit
-</button>
-<button onClick={() => handleDelete(a._id || a.id)} style={{
-  display:'flex', alignItems:'center', gap:4,
-  padding:'3px 8px', borderRadius:5,
-  border:'1px solid rgba(198,40,40,0.25)',
-  background:'rgba(198,40,40,0.08)', color:'#c62828',
-  cursor:'pointer', fontSize:'0.68rem', fontWeight:600
-}}>
-  <Trash2 size={12}/> Del
-</button>
+                              <button onClick={() => setAssignAsset(a)} style={{
+                                display:'flex', alignItems:'center', gap:4,
+                                padding:'2px 6px', borderRadius:5, border:'none',
+                                background:'#1565c0', color:'#fff',
+                                cursor:'pointer', fontSize:'0.65rem', fontWeight:600
+                              }}>
+                                <UserPlus size={12}/> Assign
+                              </button>
+                            )}
+                            {a.status === 'Assigned' && (
+                              <button onClick={() => handleUnassign(a._id || a.id)} style={{
+                                display:'flex', alignItems:'center', gap:4,
+                                padding:'2px 6px', borderRadius:5,
+                                border:'1px solid #e65100',
+                                background:'rgba(230,81,0,0.08)', color:'#e65100',
+                                cursor:'pointer', fontSize:'0.65rem', fontWeight:600
+                              }}>
+                                <Unlock size={12}/> Unassign
+                              </button>
+                            )}
+                            <button onClick={() => setEditAsset(a)} style={{
+                              display:'flex', alignItems:'center', gap:4,
+                              padding:'2px 6px', borderRadius:5, border:'none',
+                              background:'var(--red-primary)', color:'#fff',
+                              cursor:'pointer', fontSize:'0.65rem', fontWeight:600
+                            }}>
+                              <Pencil size={12}/> Edit
+                            </button>
+                            <button onClick={() => handleDelete(a._id || a.id)} style={{
+                              display:'flex', alignItems:'center', gap:4,
+                              padding:'2px 6px', borderRadius:5,
+                              border:'1px solid rgba(198,40,40,0.25)',
+                              background:'rgba(198,40,40,0.08)', color:'#c62828',
+                              cursor:'pointer', fontSize:'0.65rem', fontWeight:600
+                            }}>
+                              <Trash2 size={12}/> Del
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -519,30 +559,41 @@ const ReplaceAssetCodeForm = () => {
         </div>
       </div>
 
-<Modal
-  open={showReplace}
-  onClose={() => setShowReplace(false)}
-  title="Find & Replace Asset Code"
->
-  <ReplaceAssetCodeForm />
-</Modal>
+      {/* ✅ FIXED: Title changed to "Category" */}
+      <Modal
+        open={showReplace}
+        onClose={() => setShowReplace(false)}
+        title="Find & Replace Category"
+      >
+        <ReplaceAssetCodeForm 
+          onSuccess={load} 
+          onCancel={() => setShowReplace(false)} 
+          setMsg={setMsg}
+        />
+      </Modal>
 
       {/* Add Modal */}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add New Asset">
-        <AssetForm/>
+        <AssetForm onSuccess={load} onCancel={() => setShowAdd(false)} setMsg={setMsg}/>
       </Modal>
 
       {/* Edit Modal */}
       {editAsset && (
         <Modal open={true} onClose={() => setEditAsset(null)} title="Edit Asset">
-            <AssetForm existing={editAsset}/>
+          <AssetForm existing={editAsset} onSuccess={load} onCancel={() => setEditAsset(null)} setMsg={setMsg}/>
         </Modal>
       )}
 
-      {/* ✅ NEW: Assign Modal */}
+      {/* Assign Modal */}
       {assignAsset && (
-<Modal open={true} onClose={() => setAssignAsset(null)} title="Assign Asset to Employee">
-<AssignForm asset={assignAsset}/>
+        <Modal open={true} onClose={() => setAssignAsset(null)} title="Assign Asset to Employee">
+          <AssignForm 
+            asset={assignAsset} 
+            employees={employees} 
+            onAssign={handleAssign} 
+            onCancel={() => setAssignAsset(null)}
+            setMsg={setMsg}
+          />
         </Modal>
       )}
     </AppLayout>

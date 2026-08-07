@@ -7,14 +7,14 @@ import { PageHeader, Alert } from '@/components/ui'
 import api from '@/lib/api'
 import { RefreshCw } from 'lucide-react'
 
-const STATUS_COLOR: any = {
+const STATUS_COLOR: Record<string, string> = {
   open: '#1565c0',
   'in-progress': '#ef6c00',
   resolved: '#2e7d32',
   closed: '#616161',
 }
 
-const PRIORITY_COLOR: any = {
+const PRIORITY_COLOR: Record<string, string> = {
   low: '#2e7d32',
   medium: '#ef6c00',
   high: '#c62828',
@@ -62,7 +62,8 @@ export default function AdminTicketsPage() {
       setMsg({ type: 'error', text: err.response?.data?.error || 'Failed to delete ticket' })
     }
   }
-const toggleSelectAll = () => {
+
+  const toggleSelectAll = () => {
     if (selected.length === tickets.length) {
       setSelected([])
     } else {
@@ -96,99 +97,108 @@ const toggleSelectAll = () => {
       <div className="card" style={{ overflow: 'hidden' }}>
         {/* HEADER */}
         <div style={{ padding: '0.8rem 1.1rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Total Tickets ({tickets.length})</span>
-  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-    {selected.length > 0 && (
-      <button
-        onClick={handleBulkDelete}
-        style={{ padding: '6px 14px', background: '#c62828', color: '#fff', border: 'none', borderRadius: 5, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-      >
-      Delete Selected ({selected.length})
-      </button>
-    )}
-    <button
-      onClick={handleRefresh}
-      disabled={refreshing}
-      title="Refresh list"
-      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--bg-card)', color: 'var(--text-sub)', border: '1px solid var(--border)', borderRadius: 5, fontSize: '0.75rem', fontWeight: 600, cursor: refreshing ? 'not-allowed' : 'pointer' }}
-    >
-      <RefreshCw size={13} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}/> Refresh
-    </button>
-  </div>
-</div>
+          <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Total Tickets ({tickets.length})</span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {selected.length > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                style={{ padding: '6px 14px', background: '#c62828', color: '#fff', border: 'none', borderRadius: 5, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Delete Selected ({selected.length})
+              </button>
+            )}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Refresh list"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--bg-card)', color: 'var(--text-sub)', border: '1px solid var(--border)', borderRadius: 5, fontSize: '0.75rem', fontWeight: 600, cursor: refreshing ? 'not-allowed' : 'pointer' }}
+            >
+              <RefreshCw size={13} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}/> Refresh
+            </button>
+          </div>
+        </div>
 
         {/* TABLE */}
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-  <tr>
-    <th style={{ padding: '9px 0.9rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)' }}>
-  <input type="checkbox" checked={tickets.length > 0 && selected.length === tickets.length} onChange={toggleSelectAll} />
-</th>
-{['Ticket No', 'Subject', 'Employee', 'Department', 'Priority', 'Status', 'Created', 'Action'].map((h) => (
-  <th key={h} style={{ padding: '9px 0.9rem', textAlign: 'left', fontSize: '0.63rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', whiteSpace: 'nowrap' }}>
-    {h}
-  </th>
-))}
-  </tr>
-</thead>
+            <thead>
+              <tr>
+                <th style={{ padding: '9px 0.9rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)' }}>
+                  <input type="checkbox" checked={tickets.length > 0 && selected.length === tickets.length} onChange={toggleSelectAll} />
+                </th>
+                {['Ticket No', 'Subject', 'Employee', 'Department', 'Priority', 'Status', 'Created', 'Action'].map((h) => (
+                  <th key={h} style={{ padding: '9px 0.9rem', textAlign: 'left', fontSize: '0.63rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', whiteSpace: 'nowrap' }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
 
             <tbody>
               {loading ? (
-              <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading tickets...</td></tr> 
+                <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading tickets...</td></tr> 
               ) : tickets.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No tickets found.</td></tr>  
+                <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No tickets found.</td></tr>  
               ) : (
                 tickets.map((t: any) => (
                   <tr key={t.id || t._id}
-  onClick={() => router.push(`/admin/tickets/${t._id || t.id}`)}
-  style={{ borderBottom: '1px solid var(--border-mid)', cursor: 'pointer', transition: 'background 0.15s' }}
-  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(198,40,40,0.04)')}
-  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
->
-  <td style={{ padding: '9px 0.9rem', fontFamily: 'monospace', fontWeight: 700, color: 'var(--red-primary)', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
-  {t.ticket_no}
-</td>
-<td style={{ padding: '9px 0.9rem', color: 'var(--text-main)', minWidth: 200, fontSize: '0.8rem' }}>
-  {t.subject}
-</td>
-<td style={{ padding: '9px 0.9rem', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
-  {t.emp_name || '—'}
-</td>
-<td style={{ padding: '9px 0.9rem', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
-  {t.department || '—'}
-</td>
-<td style={{ padding: '9px 0.9rem' }}>
-  <span style={{ background: `${PRIORITY_COLOR[t.priority]}20`, color: PRIORITY_COLOR[t.priority], padding: '3px 8px', borderRadius: 20, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase' }}>
-    {t.priority}
-  </span>
-</td>
-<td style={{ padding: '9px 0.9rem' }}>
-  <span style={{ background: `${STATUS_COLOR[t.status]}20`, color: STATUS_COLOR[t.status], padding: '3px 8px', borderRadius: 20, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase' }}>
-    {t.status}
-  </span>
-</td>
-<td style={{ padding: '9px 0.9rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
-  {new Date(t.created_at || t.createdAt).toLocaleDateString()}
-</td>
+                    onClick={() => router.push(`/admin/tickets/${t._id || t.id}`)}
+                    style={{ borderBottom: '1px solid var(--border-mid)', cursor: 'pointer', transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(198,40,40,0.04)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    {/* ✅ Checkbox column */}
+                    <td style={{ padding: '9px 0.9rem' }} onClick={e => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        checked={selected.includes(t._id || t.id)} 
+                        onChange={() => toggleSelectOne(t._id || t.id)} 
+                      />
+                    </td>
+
+                    <td style={{ padding: '9px 0.9rem', fontFamily: 'monospace', fontWeight: 700, color: 'var(--red-primary)', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
+                      {t.ticket_no}
+                    </td>
+                    <td style={{ padding: '9px 0.9rem', color: 'var(--text-main)', minWidth: 200, fontSize: '0.8rem' }}>
+                      {t.subject}
+                    </td>
+                    <td style={{ padding: '9px 0.9rem', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                      {t.emp_name || '—'}
+                    </td>
+                    <td style={{ padding: '9px 0.9rem', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                      {t.department || '—'}
+                    </td>
+                    <td style={{ padding: '9px 0.9rem' }}>
+                      <span style={{ background: `${PRIORITY_COLOR[t.priority]}20`, color: PRIORITY_COLOR[t.priority], padding: '3px 8px', borderRadius: 20, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                        {t.priority}
+                      </span>
+                    </td>
+                    <td style={{ padding: '9px 0.9rem' }}>
+                      <span style={{ background: `${STATUS_COLOR[t.status]}20`, color: STATUS_COLOR[t.status], padding: '3px 8px', borderRadius: 20, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                        {t.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '9px 0.9rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
+                      {new Date(t.created_at || t.createdAt).toLocaleDateString()}
+                    </td>
 
                     {/* ACTION */}
-           <td style={{ padding: '9px 0.9rem' }} onClick={e => e.stopPropagation()}>
-  <div style={{ display: 'flex', gap: 5 }}>
-    <button
-      onClick={() => router.push(`/admin/tickets/${t._id || t.id}`)}
-      style={{ padding: '4px 10px', background: 'var(--red-primary)', color: '#fff', border: 'none', borderRadius: 5, fontSize: '0.68rem', fontWeight: 600, cursor: 'pointer' }}
-    >
-      View
-    </button>
-    <button
-      onClick={(e) => handleDelete(t._id || t.id, e)}
-      style={{ padding: '4px 10px', background: 'transparent', color: '#c62828', border: '1px solid rgba(198,40,40,0.3)', borderRadius: 5, fontSize: '0.68rem', fontWeight: 600, cursor: 'pointer' }}
-    >
-      Delete
-    </button>
-  </div>
-</td>
+                    <td style={{ padding: '9px 0.9rem' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 5 }}>
+                        <button
+                          onClick={() => router.push(`/admin/tickets/${t._id || t.id}`)}
+                          style={{ padding: '4px 10px', background: 'var(--red-primary)', color: '#fff', border: 'none', borderRadius: 5, fontSize: '0.68rem', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={(e) => handleDelete(t._id || t.id, e)}
+                          style={{ padding: '4px 10px', background: 'transparent', color: '#c62828', border: '1px solid rgba(198,40,40,0.3)', borderRadius: 5, fontSize: '0.68rem', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
