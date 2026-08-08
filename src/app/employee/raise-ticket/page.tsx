@@ -5,7 +5,7 @@ import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert } from '@/components/ui'
 import api from '@/lib/api'
 import { getUser } from '@/lib/auth'
-import { Paperclip, FileText, X, Ticket } from 'lucide-react'
+import { Paperclip, FileText, X, Ticket, CheckCircle2 } from 'lucide-react'
 
 const inp = { width:'100%', padding:'9px 12px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text-main)', fontSize:'0.83rem' }
 
@@ -25,7 +25,8 @@ export default function RaiseTicket() {
   const [loading, setLoading] = useState(false)
   const [drag, setDrag] = useState(false)
   const [file, setFile] = useState<File|null>(null)
-  const [myAssets, setMyAssets] = useState<any[]>([])
+const [myAssets, setMyAssets] = useState<any[]>([])
+const [successTicketNo, setSuccessTicketNo] = useState<string | null>(null)
 
   useEffect(() => {
   setUser(getUser())
@@ -67,10 +68,9 @@ export default function RaiseTicket() {
       }
 
       const { data } = await api.post('/tickets', payload, config)
-      setMsg({ type:'success', text:`Ticket ${data.ticket_no} raised successfully! IT team will respond within 4 business hours.` })
-setForm({ category:'', priority:'', subject:'', description:'', asset:'', contact_pref:'Email' })
-setFile(null)
-setTimeout(() => router.push('/employee/dashboard'), 1500)
+      setForm({ category:'', priority:'', subject:'', description:'', asset:'', contact_pref:'Email' })
+      setFile(null)
+      setSuccessTicketNo(data.ticket_no)
     } catch (err:any) {
       setMsg({ type:'error', text: err.response?.data?.error || 'Failed to raise ticket' })
     } finally {
@@ -169,6 +169,33 @@ setTimeout(() => router.push('/employee/dashboard'), 1500)
           </form>
         </div>
       </div>
+    {/* ✅ SUCCESS MODAL */}
+      {successTicketNo && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+        >
+          <div style={{ background: 'var(--bg-card)', borderRadius: 12, width: '100%', maxWidth: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+            <div style={{ padding: '1.6rem', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(46,125,50,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                <CheckCircle2 size={28} color="#2e7d32" />
+              </div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 6 }}>Ticket Raised Successfully!</h3>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                Your ticket <strong style={{ color: 'var(--red-primary)', fontFamily: 'IBM Plex Mono' }}>{successTicketNo}</strong> has been submitted.
+              </p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>IT team will respond within 4 business hours.</p>
+            </div>
+            <div style={{ borderTop: '1px solid var(--border)' }}>
+              <button
+                onClick={() => { setSuccessTicketNo(null); router.push('/employee/dashboard') }}
+                style={{ width: '100%', padding: '13px', border: 'none', background: 'var(--red-primary)', color: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+              >
+                Go to My Tickets
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }

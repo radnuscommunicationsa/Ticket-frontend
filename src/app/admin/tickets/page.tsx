@@ -6,6 +6,7 @@ import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert } from '@/components/ui'
 import api from '@/lib/api'
 import { RefreshCw } from 'lucide-react'
+import { Trash2 as TrashIcon, AlertTriangle } from 'lucide-react'
 
 const STATUS_COLOR: Record<string, string> = {
   open: '#1565c0',
@@ -27,7 +28,9 @@ export default function AdminTicketsPage() {
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState<any>(null)
   const [selected, setSelected] = useState<string[]>([])
+const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: 'single' | 'bulk', id?: string }>({ show: false, type: 'single' })
   const [refreshing, setRefreshing] = useState(false)
+  
 
   const loadTickets = async () => {
     try {
@@ -51,9 +54,14 @@ export default function AdminTicketsPage() {
     setRefreshing(false)
   }
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm('Delete this ticket? This cannot be undone.')) return
+    setConfirmModal({ show: true, type: 'single', id })
+  }
+
+  const confirmSingleDelete = async () => {
+    const id = confirmModal.id!
+    setConfirmModal({ show: false, type: 'single' })
     try {
       await api.delete(`/tickets/${id}`)
       setMsg({ type: 'success', text: 'Ticket deleted successfully.' })
@@ -75,9 +83,13 @@ export default function AdminTicketsPage() {
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selected.length === 0) return
-    if (!confirm(`Delete ${selected.length} selected ticket(s)? This cannot be undone.`)) return
+    setConfirmModal({ show: true, type: 'bulk' })
+  }
+
+  const confirmBulkDelete = async () => {
+    setConfirmModal({ show: false, type: 'bulk' })
     try {
       await Promise.all(selected.map(id => api.delete(`/tickets/${id}`)))
       setMsg({ type: 'success', text: `${selected.length} ticket(s) deleted successfully.` })
@@ -206,6 +218,43 @@ export default function AdminTicketsPage() {
           </table>
         </div>
       </div>
+
+{/* CUSTOM CONFIRM MODAL */}
+      {confirmModal.show && (
+        <div
+          onClick={() => setConfirmModal({ show: false, type: confirmModal.type })}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: 'var(--bg-card)', borderRadius: 12, width: '100%', maxWidth: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}
+          >
+            <div style={{ padding: '1.4rem', textAlign: 'center' }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(198,40,40,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                <AlertTriangle size={26} color="#c62828" />
+              </div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 6 }}>
+                {confirmModal.type === 'bulk' ? `Delete ${selected.length} selected ticket(s)?` : 'Delete this ticket?'}
+              </h3>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>This action cannot be undone.</p>
+            </div>
+            <div style={{ display: 'flex', borderTop: '1px solid var(--border)' }}>
+              <button
+                onClick={() => setConfirmModal({ show: false, type: confirmModal.type })}
+                style={{ flex: 1, padding: '12px', border: 'none', borderRight: '1px solid var(--border)', background: 'transparent', color: 'var(--text-sub)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmModal.type === 'bulk' ? confirmBulkDelete : confirmSingleDelete}
+                style={{ flex: 1, padding: '12px', border: 'none', background: '#c62828', color: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <TrashIcon size={14}/> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
-}
+} 

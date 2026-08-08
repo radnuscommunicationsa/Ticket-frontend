@@ -97,3 +97,55 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
     </div>
   </div>
 }
+import { AlertTriangle, Trash2 } from 'lucide-react'
+
+export function ConfirmModal({
+  open,
+  title,
+  subtitle = 'This action cannot be undone.',
+  confirmLabel = 'Delete',
+  onCancel,
+  onConfirm
+}: {
+  open: boolean
+  title: string
+  subtitle?: string
+  confirmLabel?: string
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  if (!open) return null
+  return (
+    <div
+      onClick={onCancel}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: 'var(--bg-card)', borderRadius: 12, width: '100%', maxWidth: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}
+      >
+        <div style={{ padding: '1.4rem', textAlign: 'center' }}>
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(198,40,40,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+            <AlertTriangle size={26} color="#c62828" />
+          </div>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 6 }}>{title}</h3>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{subtitle}</p>
+        </div>
+        <div style={{ display: 'flex', borderTop: '1px solid var(--border)' }}>
+          <button
+            onClick={onCancel}
+            style={{ flex: 1, padding: '12px', border: 'none', borderRight: '1px solid var(--border)', background: 'transparent', color: 'var(--text-sub)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{ flex: 1, padding: '12px', border: 'none', background: '#c62828', color: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          >
+            <Trash2 size={14}/> {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
