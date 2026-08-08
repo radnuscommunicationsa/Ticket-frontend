@@ -1,32 +1,57 @@
 'use client'
-import { useEffect, useState } from 'react'
+
+import { useEffect, useState, useMemo } from 'react'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert, Modal, DeptBadge } from '@/components/ui'
 import api from '@/lib/api'
 import { Search, UserPlus, Save, Pencil, Trash2, ShieldCheck, RefreshCw } from 'lucide-react'
 
 const DEPTS = ['Loan','Customer Support','General Manager','Accounts','Faculty','Web Development','Digital Marketing','Sales','Design','Admission','HR','Telecalling','Stock','Distribution','Technical Service Engineer','Android Development','System Administrator','Software Support']
-function avatarColor(n:string){const c=['#1565c0','#6a1b9a','#00695c','#c62828','#e65100','#2e7d32','#37474f','#4527a0'];let h=0;for(const ch of n)h+=ch.charCodeAt(0);return c[h%c.length]}
-function initials(n?:string){if(!n)return 'NA';const p=n.split(' ');return((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase()}
+
+function avatarColor(n:string){
+  const c=['#1565c0','#6a1b9a','#00695c','#c62828','#e65100','#2e7d32','#37474f','#4527a0']
+  let h=0
+  for(const ch of n) h+=ch.charCodeAt(0)
+  return c[h%c.length]
+}
+
+function initials(n?:string){
+  if(!n) return 'NA'
+  const p=n.split(' ')
+  return ((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase()
+}
 
 export default function AdminEmployees() {
-  const [employees,setEmployees]=useState<any[]>([])
-  const [admins,setAdmins]=useState<any[]>([])
-  const [msg,setMsg]=useState<{type:'success'|'error',text:string}|null>(null)
-  const [showAdd,setShowAdd]=useState(false)
-  const [editEmp,setEditEmp]=useState<any>(null)
-  const [editAdmin,setEditAdmin]=useState<any>(null)
-  const [search,setSearch]=useState('')
-  const [refreshing,setRefreshing]=useState(false)
+  const [employees, setEmployees] = useState<any[]>([])
+  const [admins, setAdmins] = useState<any[]>([])
+  const [allTickets, setAllTickets] = useState<any[]>([])  // ✅ NEW
+  const [msg, setMsg] = useState<{type:'success'|'error',text:string}|null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [editEmp, setEditEmp] = useState<any>(null)
+  const [editAdmin, setEditAdmin] = useState<any>(null)
+  const [search, setSearch] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
 
-  const load=async()=>{
-    try{
-      const { data } = await api.get('/employees');
-      setEmployees(data?.employees ?? []);
-      setAdmins(data?.admins ?? [])
-    }catch(err:any){setMsg({type:'error',text:err.response?.data?.error||'Failed to load'})}
+  // ✅ UPDATED: Fetch both employees + tickets
+  const load = async () => {
+    try {
+      const [empRes, ticketRes] = await Promise.all([
+        api.get('/employees'),
+        api.get('/tickets')
+      ])
+      
+      setEmployees(empRes.data?.employees ?? [])
+      setAdmins(empRes.data?.admins ?? [])
+      
+      // Handle both response formats
+      const tData = Array.isArray(ticketRes.data) ? ticketRes.data : (ticketRes.data?.tickets ?? [])
+      setAllTickets(tData)
+    } catch(err:any) {
+      setMsg({type:'error', text: err.response?.data?.error || 'Failed to load'})
+    }
   }
-  useEffect(()=>{load()},[])
+
+  useEffect(() => { load() }, [])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -34,150 +59,259 @@ export default function AdminEmployees() {
     setRefreshing(false)
   }
 
-  const filteredEmployees = employees.filter((e:any) => 
+  // ✅ NEW: Merge ticket counts into employees
+  const employeesWithCounts = useMemo(() => {
+    return employees.map((e: any) => {
+      const empId = e._id || e.id
+      const empEmpId = e.emp_id
+      
+      // Find tickets for this employee (check multiple possible fields)
+      const empTickets = allTickets.filter((t: any) => {
+        const tEmpId = t.employee_id || t.emp_id || t.created_by || t.user_id
+        return tEmpId === empId || tEmpId === empEmpId
+      })
+      
+      const openTickets = empTickets.filter((t: any) => 
+        t.status === 'open' || t.status === 'in-progress'
+      )
+
+      return {
+        ...e,
+        ticket_count: e.ticket_count ?? empTickets.length,
+        open_tickets: e.open_tickets ?? openTickets.length
+      }
+    })
+  }, [employees, allTickets])
+
+  // ✅ UPDATED: Search on merged data
+  const filteredEmployees = employeesWithCounts.filter((e: any) => 
     e.name?.toLowerCase().includes(search.toLowerCase()) ||
     e.emp_id?.toLowerCase().includes(search.toLowerCase()) ||
     e.department?.toLowerCase().includes(search.toLowerCase())
   )
-  
-  const handleDelete=async(id:string)=>{
-    if(!confirm('Delete this employee and all their tickets?'))return
-    try{await api.delete(`/employees/${id}`);setMsg({type:'success',text:'Employee deleted.'});load()}
-    catch(e:any){setMsg({type:'error',text:e.response?.data?.error||'Delete failed'})}
+
+  const handleDelete = async (id: string) => {
+    if(!confirm('Delete this employee and all their tickets?')) return
+    try {
+      await api.delete(`/employees/${id}`)
+      setMsg({type:'success', text:'Employee deleted.'})
+      load()
+    } catch(e: any) {
+      setMsg({type:'error', text: e.response?.data?.error || 'Delete failed'})
+    }
   }
 
-  const inp={width:'100%',padding:'10px 12px',borderRadius:5,border:'1px solid var(--border)',background:'var(--bg-input)',color:'var(--text-main)',fontSize:'0.85rem'}
-  const FG=({label,children}:{label:string,children:React.ReactNode})=>(
+  const inp = {
+    width:'100%', padding:'10px 12px', borderRadius:5,
+    border:'1px solid var(--border)', background:'var(--bg-input)',
+    color:'var(--text-main)', fontSize:'0.85rem'
+  }
+
+  const FG = ({label, children}: {label:string, children:React.ReactNode}) => (
     <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:'0.9rem'}}>
       <label style={{fontSize:'0.7rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)'}}>{label}</label>
       {children}
     </div>
   )
 
-  const AddForm=()=>{
-    const [d,setD]=useState({name:'',emp_id:'',password:'',department:'',phone:'',role:'employee'})
-    const submit=async(e:React.FormEvent)=>{
+  const AddForm = () => {
+    const [d,setD] = useState({name:'',emp_id:'',password:'',department:'',phone:'',role:'employee'})
+    const submit = async (e:React.FormEvent) => {
       e.preventDefault()
-      try{await api.post('/employees',d);setMsg({type:'success',text:`Employee ${d.name} added!`});setShowAdd(false);load()}
-      catch(err:any){setMsg({type:'error',text:err.response?.data?.error||'Failed'})}
+      try {
+        await api.post('/employees', d)
+        setMsg({type:'success', text:`Employee ${d.name} added!`})
+        setShowAdd(false)
+        load()
+      } catch(err:any) {
+        setMsg({type:'error', text: err.response?.data?.error || 'Failed'})
+      }
     }
-    return <form onSubmit={submit}>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-        <FG label="Full Name *"><input required style={inp} value={d.name} onChange={e=>setD({...d,name:e.target.value})} placeholder="John Smith"/></FG>
-        <FG label="Employee ID *"><input required style={inp} value={d.emp_id} onChange={e=>setD({...d,emp_id:e.target.value})} placeholder="EMP-0120"/></FG>
-      </div>
-      <FG label="Password *"><input required type="password" style={inp} value={d.password} onChange={e=>setD({...d,password:e.target.value})} placeholder="Set initial password"/></FG>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-        <FG label="Department"><select style={inp} value={d.department} onChange={e=>setD({...d,department:e.target.value})}><option value="">— Select —</option>{DEPTS.map(dept=><option key={dept}>{dept}</option>)}</select></FG>
-        <FG label="Role">
-  <select
-    style={inp}
-    value={d.role}
-    onChange={e => setD({ ...d, role: e.target.value })}
-  >
-    <option value="employee">Employee</option>
-    <option value="admin">Admin</option>
-    <option value="system_admin">System Admin</option>
-  </select>
-</FG>
-      </div>
-      <FG label="Phone"><input type="tel" style={inp} value={d.phone} onChange={e=>setD({...d,phone:e.target.value})} placeholder="Optional"/></FG>
-      <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:'0.5rem'}}>
-        <button type="button" onClick={()=>setShowAdd(false)} style={{padding:'8px 18px',borderRadius:6,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
-        <button type="submit" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 18px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
-  <UserPlus size={14}/> Add Employee
-</button>
+    return (
+      <form onSubmit={submit}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+          <FG label="Full Name *"><input required style={inp} value={d.name} onChange={e=>setD({...d,name:e.target.value})} placeholder="John Smith"/></FG>
+          <FG label="Employee ID *"><input required style={inp} value={d.emp_id} onChange={e=>setD({...d,emp_id:e.target.value})} placeholder="EMP-0120"/></FG>
         </div>
-    </form>
+        <FG label="Password *"><input required type="password" style={inp} value={d.password} onChange={e=>setD({...d,password:e.target.value})} placeholder="Set initial password"/></FG>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+          <FG label="Department">
+            <select style={inp} value={d.department} onChange={e=>setD({...d,department:e.target.value})}>
+              <option value="">— Select —</option>
+              {DEPTS.map(dept => <option key={dept}>{dept}</option>)}
+            </select>
+          </FG>
+          <FG label="Role">
+            <select style={inp} value={d.role} onChange={e=>setD({...d,role:e.target.value})}>
+              <option value="employee">Employee</option>
+              <option value="admin">Admin</option>
+              <option value="system_admin">System Admin</option>
+            </select>
+          </FG>
+        </div>
+        <FG label="Phone"><input type="tel" style={inp} value={d.phone} onChange={e=>setD({...d,phone:e.target.value})} placeholder="Optional"/></FG>
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:'0.5rem'}}>
+          <button type="button" onClick={()=>setShowAdd(false)} style={{padding:'8px 18px',borderRadius:6,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
+          <button type="submit" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 18px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
+            <UserPlus size={14}/> Add Employee
+          </button>
+        </div>
+      </form>
+    )
   }
 
-  const EditForm=({emp,isAdmin}:{emp:any,isAdmin:boolean})=>{
-    const [d,setD]=useState({name:emp.name,emp_id:emp.emp_id,department:emp.department||'',phone:emp.phone||'',role:emp.role,status:emp.status,new_password:''})
-    const submit=async(e:React.FormEvent)=>{
+  const EditForm = ({emp, isAdmin}: {emp:any, isAdmin:boolean}) => {
+    const [d,setD] = useState({
+      name: emp.name,
+      emp_id: emp.emp_id,
+      department: emp.department || '',
+      phone: emp.phone || '',
+      role: emp.role,
+      status: emp.status,
+      new_password: ''
+    })
+    const submit = async (e:React.FormEvent) => {
       e.preventDefault()
-      try{await api.patch(`/employees/${emp._id||emp.id}`,d);setMsg({type:'success',text:`${d.name} updated!`});setEditEmp(null);setEditAdmin(null);load()}
-      catch(err:any){setMsg({type:'error',text:err.response?.data?.error||'Failed'})}
+      try {
+        await api.patch(`/employees/${emp._id||emp.id}`, d)
+        setMsg({type:'success', text:`${d.name} updated!`})
+        setEditEmp(null)
+        setEditAdmin(null)
+        load()
+      } catch(err:any) {
+        setMsg({type:'error', text: err.response?.data?.error || 'Failed'})
+      }
     }
-    return <form onSubmit={submit}>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-        <FG label="Full Name *"><input required style={inp} value={d.name} onChange={e=>setD({...d,name:e.target.value})}/></FG>
-        <FG label={isAdmin?'Admin ID *':'Employee ID *'}><input required style={inp} value={d.emp_id} onChange={e=>setD({...d,emp_id:e.target.value})}/></FG>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-        <FG label="Department"><select style={inp} value={d.department} onChange={e=>setD({...d,department:e.target.value})}><option value="">— Select —</option>{DEPTS.map(dept=><option key={dept}>{dept}</option>)}</select></FG>
-        <FG label="Status"><select style={inp} value={d.status} onChange={e=>setD({...d,status:e.target.value})}><option value="active">Active</option><option value="inactive">Inactive</option></select></FG>
-      </div>
-      <FG label="Phone"><input type="tel" style={inp} value={d.phone} onChange={e=>setD({...d,phone:e.target.value})}/></FG>
-      <FG label="New Password (blank = no change)"><input type="password" style={inp} value={d.new_password} onChange={e=>setD({...d,new_password:e.target.value})} placeholder="Enter to change..."/></FG>
-      <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:'0.5rem'}}>
-        <button type="button" onClick={()=>{setEditEmp(null);setEditAdmin(null)}} style={{padding:'8px 18px',borderRadius:5,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
-        <button type="submit" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 18px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
-  <Save size={14}/> Save Changes
-</button>
+    return (
+      <form onSubmit={submit}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+          <FG label="Full Name *"><input required style={inp} value={d.name} onChange={e=>setD({...d,name:e.target.value})}/></FG>
+          <FG label={isAdmin?'Admin ID *':'Employee ID *'}><input required style={inp} value={d.emp_id} onChange={e=>setD({...d,emp_id:e.target.value})}/></FG>
         </div>
-    </form>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+          <FG label="Department">
+            <select style={inp} value={d.department} onChange={e=>setD({...d,department:e.target.value})}>
+              <option value="">— Select —</option>
+              {DEPTS.map(dept => <option key={dept}>{dept}</option>)}
+            </select>
+          </FG>
+          <FG label="Status">
+            <select style={inp} value={d.status} onChange={e=>setD({...d,status:e.target.value})}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </FG>
+        </div>
+        <FG label="Phone"><input type="tel" style={inp} value={d.phone} onChange={e=>setD({...d,phone:e.target.value})}/></FG>
+        <FG label="New Password (blank = no change)"><input type="password" style={inp} value={d.new_password} onChange={e=>setD({...d,new_password:e.target.value})} placeholder="Enter to change..."/></FG>
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:'0.5rem'}}>
+          <button type="button" onClick={()=>{setEditEmp(null);setEditAdmin(null)}} style={{padding:'8px 18px',borderRadius:5,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
+          <button type="submit" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 18px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
+            <Save size={14}/> Save Changes
+          </button>
+        </div>
+      </form>
+    )
   }
 
-  const TH=({c}:{c:string})=><th style={{fontSize:'0.67rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-muted)',padding:'10px 1.4rem',textAlign:'left',borderBottom:'1px solid var(--border)',background:'rgba(198,40,40,0.04)',whiteSpace:'nowrap'}}>{c}</th>
+  const TH = ({c}:{c:string}) => (
+    <th style={{fontSize:'0.67rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-muted)',padding:'10px 1.4rem',textAlign:'left',borderBottom:'1px solid var(--border)',background:'rgba(198,40,40,0.04)',whiteSpace:'nowrap'}}>{c}</th>
+  )
 
   return (
     <AppLayout role="admin">
       <PageHeader breadcrumb="EMPLOYEES" title="Employee Management" subtitle="Manage your team members and their access"/>
-      {msg&&<Alert type={msg.type} message={msg.text}/>}
+      {msg && <Alert type={msg.type} message={msg.text}/>}
 
-     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem',gap:'0.7rem',flexWrap:'wrap'}}>
-  <div style={{position:'relative',flex:'1',minWidth:'240px',maxWidth:'380px'}}>
-    <Search size={14} color="var(--text-muted)" style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)'}}/>
-    <input
-      type="text"
-      placeholder="Search by name, ID or department..."
-      value={search}
-      onChange={e=>setSearch(e.target.value)}
-      style={{width:'100%',padding:'8px 12px 8px 32px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg-input)',color:'var(--text-main)',fontSize:'0.82rem',boxSizing:'border-box'}}
-    />
-  </div>
-  <button onClick={handleRefresh} disabled={refreshing} title="Refresh list" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 12px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg-card)',color:'var(--text-sub)',cursor:refreshing?'not-allowed':'pointer',fontSize:'0.78rem',fontWeight:600}}>
-    <RefreshCw size={14} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}/> Refresh
-  </button>
-  <button onClick={()=>setShowAdd(true)} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 16px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.78rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.04em'}}>
-    <UserPlus size={14}/> Add Employee
-  </button>
-</div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem',gap:'0.7rem',flexWrap:'wrap'}}>
+        <div style={{position:'relative',flex:'1',minWidth:'240px',maxWidth:'380px'}}>
+          <Search size={14} color="var(--text-muted)" style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)'}}/>
+          <input
+            type="text"
+            placeholder="Search by name, ID or department..."
+            value={search}
+            onChange={e=>setSearch(e.target.value)}
+            style={{width:'100%',padding:'8px 12px 8px 32px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg-input)',color:'var(--text-main)',fontSize:'0.82rem',boxSizing:'border-box'}}
+          />
+        </div>
+        <button onClick={handleRefresh} disabled={refreshing} title="Refresh list" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 12px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg-card)',color:'var(--text-sub)',cursor:refreshing?'not-allowed':'pointer',fontSize:'0.78rem',fontWeight:600}}>
+          <RefreshCw size={14} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}/> Refresh
+        </button>
+        <button onClick={()=>setShowAdd(true)} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 16px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.78rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.04em'}}>
+          <UserPlus size={14}/> Add Employee
+        </button>
+      </div>
 
       {/* Employee Table */}
       <div className="card" style={{marginBottom:'1.5rem'}}>
-        <div style={{padding:'1rem 1.4rem',borderBottom:'1px solid var(--border)',background:'var(--bg-mid)'}}><span style={{fontSize:'0.87rem',fontWeight:600}}>All Employees ({filteredEmployees.length})</span></div>
+        <div style={{padding:'1rem 1.4rem',borderBottom:'1px solid var(--border)',background:'var(--bg-mid)'}}>
+          <span style={{fontSize:'0.87rem',fontWeight:600}}>All Employees ({filteredEmployees.length})</span>
+        </div>
         <div style={{overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr><TH c="Employee"/><TH c="ID"/><TH c="Department"/><TH c="Tickets"/><TH c="Open"/><TH c="Actions"/></tr></thead>
+            <thead>
+              <tr>
+                <TH c="Employee"/>
+                <TH c="ID"/>
+                <TH c="Department"/>
+                <TH c="Tickets"/>
+                <TH c="Open"/>
+                <TH c="Actions"/>
+              </tr>
+            </thead>
             <tbody>
-              {filteredEmployees.length===0
-  ?<tr><td colSpan={6} style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>No employees found.</td></tr>
-  :filteredEmployees.map((e:any)=>(
-                <tr key={e._id||e.id} style={{borderBottom:'1px solid var(--border-mid)'}}>
-                  <td style={{padding:'12px 1.4rem'}}>
-                    <div style={{display:'flex',alignItems:'center',gap:10}}>
-                      <div style={{width:30,height:30,borderRadius:'50%',background:avatarColor(e.name||'A'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem',fontWeight:700,color:'#fff',flexShrink:0}}>{initials(e.name)}</div>
-                      <div>
-                        <div style={{fontWeight:500,color:'var(--text-main)',fontSize:'0.85rem'}}>{e.name}</div>
-                        <div style={{fontSize:'0.72rem',color:e.status==='active'?'#2e7d32':'var(--text-muted)'}}>● {e.status}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{padding:'12px 1.4rem',fontFamily:'IBM Plex Mono',color:'var(--red-primary)',fontSize:'0.77rem'}}>{e.emp_id}</td>
-                  <td style={{padding:'12px 1.4rem'}}><DeptBadge dept={e.department||'—'}/></td>
-                  <td style={{padding:'12px 1.4rem'}}><span style={{background:'var(--red-primary)',color:'#fff',fontSize:'0.62rem',fontWeight:700,padding:'1px 6px',borderRadius:10}}>{e.ticket_count||0}</span></td>
-                  <td style={{padding:'12px 1.4rem'}}>{(e.open_tickets||0)>0?<span style={{background:'#b71c1c',color:'#fff',fontSize:'0.62rem',fontWeight:700,padding:'1px 6px',borderRadius:10}}>{e.open_tickets}</span>:'-'}</td>
-                  <td style={{padding:'10px 1.2rem',display:'flex',gap:6,flexWrap:'wrap'}}>
-  <button onClick={()=>setEditEmp(e)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
-    <Pencil size={11}/> Edit
-  </button>
-  <button onClick={()=>handleDelete(e._id||e.id)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'1px solid rgba(198,40,40,0.25)',background:'rgba(198,40,40,0.08)',color:'#c62828',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
-    <Trash2 size={11}/> Delete
-  </button>
-</td>
+              {filteredEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>No employees found.</td>
                 </tr>
-              ))}
+              ) : (
+                filteredEmployees.map((e: any) => (
+                  <tr key={e._id||e.id} style={{borderBottom:'1px solid var(--border-mid)'}}>
+                    <td style={{padding:'12px 1.4rem'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <div style={{width:30,height:30,borderRadius:'50%',background:avatarColor(e.name||'A'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem',fontWeight:700,color:'#fff',flexShrink:0}}>
+                          {initials(e.name)}
+                        </div>
+                        <div>
+                          <div style={{fontWeight:500,color:'var(--text-main)',fontSize:'0.85rem'}}>{e.name}</div>
+                          <div style={{fontSize:'0.72rem',color:e.status==='active'?'#2e7d32':'var(--text-muted)'}}>● {e.status}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{padding:'12px 1.4rem',fontFamily:'IBM Plex Mono',color:'var(--red-primary)',fontSize:'0.77rem'}}>{e.emp_id}</td>
+                    <td style={{padding:'12px 1.4rem'}}><DeptBadge dept={e.department||'—'}/></td>
+                    
+                    {/* ✅ FIXED: ticket_count with fallback */}
+                    <td style={{padding:'12px 1.4rem'}}>
+                      <span style={{background:'var(--red-primary)',color:'#fff',fontSize:'0.62rem',fontWeight:700,padding:'2px 8px',borderRadius:10}}>
+                        {e.ticket_count ?? 0}
+                      </span>
+                    </td>
+                    
+                    {/* ✅ FIXED: open_tickets with proper check */}
+                    <td style={{padding:'12px 1.4rem'}}>
+                      {(e.open_tickets ?? 0) > 0 ? (
+                        <span style={{background:'#b71c1c',color:'#fff',fontSize:'0.62rem',fontWeight:700,padding:'2px 8px',borderRadius:10}}>
+                          {e.open_tickets}
+                        </span>
+                      ) : (
+                        <span style={{color:'var(--text-muted)',fontSize:'0.78rem'}}>—</span>
+                      )}
+                    </td>
+                    
+                    <td style={{padding:'10px 1.2rem'}}>
+                      <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                        <button onClick={()=>setEditEmp(e)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
+                          <Pencil size={11}/> Edit
+                        </button>
+                        <button onClick={()=>handleDelete(e._id||e.id)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'1px solid rgba(198,40,40,0.25)',background:'rgba(198,40,40,0.08)',color:'#c62828',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
+                          <Trash2 size={11}/> Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -186,43 +320,59 @@ export default function AdminEmployees() {
       {/* Admins Table */}
       <div className="card">
         <div style={{padding:'0.9rem 1.2rem',borderBottom:'1px solid var(--border)',background:'var(--bg-mid)',display:'flex',alignItems:'center',gap:8}}>
-  <ShieldCheck size={15} color="var(--red-primary)"/>
-  <span style={{fontSize:'0.85rem',fontWeight:600}}>Admins ({admins.length})</span>
-</div>
+          <ShieldCheck size={15} color="var(--red-primary)"/>
+          <span style={{fontSize:'0.85rem',fontWeight:600}}>Admins ({admins.length})</span>
+        </div>
         <div style={{overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr><TH c="Admin"/><TH c="ID"/><TH c="Phone"/><TH c="Actions"/></tr></thead>
+            <thead>
+              <tr><TH c="Admin"/><TH c="ID"/><TH c="Phone"/><TH c="Actions"/></tr>
+            </thead>
             <tbody>
-              {admins.length===0
-                ?<tr><td colSpan={4} style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>No admins found.</td></tr>
-                :admins.map((a:any)=>(
-                <tr key={a._id||a.id} style={{borderBottom:'1px solid var(--border-mid)'}}>
-                  <td style={{padding:'12px 1.4rem'}}>
-                    <div style={{display:'flex',alignItems:'center',gap:10}}>
-                      <div style={{width:30,height:30,borderRadius:'50%',background:'#c62828',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem',fontWeight:700,color:'#fff'}}>{initials(a.name)}</div>
-                      <div>
-                        <div style={{fontWeight:500,color:'var(--text-main)',fontSize:'0.85rem'}}>{a.name}</div>
-                        <div style={{fontSize:'0.7rem',color:'var(--red-primary)'}}>● Admin</div>
+              {admins.length === 0 ? (
+                <tr><td colSpan={4} style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>No admins found.</td></tr>
+              ) : (
+                admins.map((a: any) => (
+                  <tr key={a._id||a.id} style={{borderBottom:'1px solid var(--border-mid)'}}>
+                    <td style={{padding:'12px 1.4rem'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <div style={{width:30,height:30,borderRadius:'50%',background:'#c62828',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem',fontWeight:700,color:'#fff'}}>
+                          {initials(a.name)}
+                        </div>
+                        <div>
+                          <div style={{fontWeight:500,color:'var(--text-main)',fontSize:'0.85rem'}}>{a.name}</div>
+                          <div style={{fontSize:'0.7rem',color:'var(--red-primary)'}}>● Admin</div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td style={{padding:'12px 1.4rem',fontFamily:'IBM Plex Mono',color:'var(--red-primary)',fontSize:'0.77rem'}}>{a.emp_id}</td>
-                  <td style={{padding:'12px 1.4rem',fontSize:'0.78rem',color:'var(--text-muted)'}}>{a.phone||'—'}</td>
-                  <td style={{padding:'10px 1.2rem'}}>
-  <button onClick={()=>setEditAdmin(a)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
-    <Pencil size={11}/> Edit
-  </button>
-</td>
-                </tr>
-              ))}
+                    </td>
+                    <td style={{padding:'12px 1.4rem',fontFamily:'IBM Plex Mono',color:'var(--red-primary)',fontSize:'0.77rem'}}>{a.emp_id}</td>
+                    <td style={{padding:'12px 1.4rem',fontSize:'0.78rem',color:'var(--text-muted)'}}>{a.phone||'—'}</td>
+                    <td style={{padding:'10px 1.2rem'}}>
+                      <button onClick={()=>setEditAdmin(a)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
+                        <Pencil size={11}/> Edit
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Employee"><AddForm/></Modal>
-{editEmp&&<Modal open={true} onClose={()=>setEditEmp(null)} title="Edit Employee"><EditForm emp={editEmp} isAdmin={false}/></Modal>}
-{editAdmin&&<Modal open={true} onClose={()=>setEditAdmin(null)} title="Edit Admin"><EditForm emp={editAdmin} isAdmin={true}/></Modal>}
-      </AppLayout>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Employee">
+        <AddForm/>
+      </Modal>
+      {editEmp && (
+        <Modal open={true} onClose={()=>setEditEmp(null)} title="Edit Employee">
+          <EditForm emp={editEmp} isAdmin={false}/>
+        </Modal>
+      )}
+      {editAdmin && (
+        <Modal open={true} onClose={()=>setEditAdmin(null)} title="Edit Admin">
+          <EditForm emp={editAdmin} isAdmin={true}/>
+        </Modal>
+      )}
+    </AppLayout>
   )
 }

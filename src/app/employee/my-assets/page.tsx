@@ -3,9 +3,12 @@ import { useEffect, useState } from 'react'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader } from '@/components/ui'
 import api from '@/lib/api'
-import { Laptop, Monitor, Smartphone, Printer, Keyboard, Mouse, Package } from 'lucide-react'
+import { 
+  Laptop, Monitor, Smartphone, Printer, Keyboard, Mouse, Package,
+  Cpu, Server, Wifi, Tablet, Router, BatteryCharging, Cable, Zap
+} from 'lucide-react'
 
-const STATUS_COLOR: any = {
+const STATUS_COLOR: Record<string, string> = {
   Available: '#2e7d32',
   Assigned: '#1565c0',
   'Under Repair': '#ef6c00',
@@ -13,15 +16,22 @@ const STATUS_COLOR: any = {
   Retired: '#616161',
 }
 
-const CATEGORY_ICON: any = {
-  Laptop: <Laptop size={18} strokeWidth={1.8} />,
-  Desktop: <Monitor size={18} strokeWidth={1.8} />,
-  Mobile: <Smartphone size={18} strokeWidth={1.8} />,
-  Printer: <Printer size={18} strokeWidth={1.8} />,
-  Monitor: <Monitor size={18} strokeWidth={1.8} />,
-  Keyboard: <Keyboard size={18} strokeWidth={1.8} />,
-  Mouse: <Mouse size={18} strokeWidth={1.8} />,
-  Other: <Package size={18} strokeWidth={1.8} />,
+// ✅ FIXED: All categories mapped — no more emoji fallback
+const CATEGORY_ICON: Record<string, React.ReactNode> = {
+  Laptop: <Laptop size={20} strokeWidth={1.8} />,
+  CPU: <Cpu size={20} strokeWidth={1.8} />,
+  Monitor: <Monitor size={20} strokeWidth={1.8} />,
+  Keyboard: <Keyboard size={20} strokeWidth={1.8} />,
+  Mouse: <Mouse size={20} strokeWidth={1.8} />,
+  Printer: <Printer size={20} strokeWidth={1.8} />,
+  Phone: <Smartphone size={20} strokeWidth={1.8} />,
+  Server: <Server size={20} strokeWidth={1.8} />,
+  'Network Device': <Wifi size={20} strokeWidth={1.8} />,
+  Tablet: <Tablet size={20} strokeWidth={1.8} />,
+  Router: <Router size={20} strokeWidth={1.8} />,
+  UPS: <BatteryCharging size={20} strokeWidth={1.8} />,
+  Cable: <Cable size={20} strokeWidth={1.8} />,
+  Other: <Package size={20} strokeWidth={1.8} />,
 }
 
 export default function MyAssets() {
@@ -31,7 +41,7 @@ export default function MyAssets() {
 
   useEffect(() => {
     api.get('/assets/my-assets')
-      .then(r => setAssets(Array.isArray(r.data) ? r.data : []))
+      .then(r => setAssets(r.data?.assets || []))
       .catch(err => setMsg({ type: 'error', text: err.response?.data?.error || 'Failed to load assets' }))
       .finally(() => setLoading(false))
   }, [])
@@ -74,13 +84,15 @@ export default function MyAssets() {
           {assets.map((a: any) => (
             <div key={a._id} className="card" style={{ overflow: 'hidden' }}>
               {/* Card Header */}
-              <div style={{ padding: '1rem 1.4rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: '1.8rem' }}>{CATEGORY_ICON[a.category] || '📦'}</span>
-                <div>
+              <div style={{ padding: '1rem 1.4rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ color: 'var(--red-primary)', display: 'flex', alignItems: 'center' }}>
+                  {CATEGORY_ICON[a.category] || <Package size={20} strokeWidth={1.8} />}
+                </span>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>{a.name}</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{a.asset_code}</div>
                 </div>
-                <span style={{ marginLeft: 'auto', background: `${STATUS_COLOR[a.status]}20`, color: STATUS_COLOR[a.status], padding: '3px 8px', borderRadius: 20, fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                <span style={{ marginLeft: 'auto', background: `${STATUS_COLOR[a.status]}20`, color: STATUS_COLOR[a.status], padding: '3px 8px', borderRadius: 20, fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                   {a.status}
                 </span>
               </div>

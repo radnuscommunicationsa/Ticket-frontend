@@ -5,7 +5,7 @@ import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert } from '@/components/ui'
 import api from '@/lib/api'
 import { getUser } from '@/lib/auth'
-import { Paperclip, FileText, X, Ticket, AlertOctagon, AlertTriangle, Info, CircleDot } from 'lucide-react'
+import { Paperclip, FileText, X, Ticket } from 'lucide-react'
 
 const inp = { width:'100%', padding:'9px 12px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text-main)', fontSize:'0.83rem' }
 
@@ -25,21 +25,52 @@ export default function RaiseTicket() {
   const [loading, setLoading] = useState(false)
   const [drag, setDrag] = useState(false)
   const [file, setFile] = useState<File|null>(null)
+  const [myAssets, setMyAssets] = useState<any[]>([])
 
   useEffect(() => {
-    setUser(getUser())
-    setReady(true)
-  }, [])
+  setUser(getUser())
+  setReady(true)
+  
+  // ✅ ITHU ADD PANNANUM
+  api.get('/assets/my-assets')
+    .then(res => setMyAssets(res.data?.assets || []))
+    .catch(() => setMyAssets([]))
+}, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMsg(null)
+
+    if (file && file.size > 5 * 1024 * 1024) {
+      setMsg({ type: 'error', text: 'File size must be less than 5MB' })
+      setLoading(false)
+      return
+    }
+
     try {
-      const { data } = await api.post('/tickets', form)
+      let payload: any
+      let config: any = {}
+
+      if (file) {
+        payload = new FormData()
+        payload.append('category', form.category)
+        payload.append('priority', form.priority)
+        payload.append('subject', form.subject)
+        payload.append('description', form.description)
+        if (form.asset) payload.append('asset', form.asset)
+        payload.append('contact_pref', form.contact_pref)
+        payload.append('attachment', file)
+        config.headers = { 'Content-Type': 'multipart/form-data' }
+      } else {
+        payload = form
+      }
+
+      const { data } = await api.post('/tickets', payload, config)
       setMsg({ type:'success', text:`Ticket ${data.ticket_no} raised successfully! IT team will respond within 4 business hours.` })
-      setForm({ category:'', priority:'', subject:'', description:'', asset:'', contact_pref:'Email' })
-      setFile(null)
+setForm({ category:'', priority:'', subject:'', description:'', asset:'', contact_pref:'Email' })
+setFile(null)
+setTimeout(() => router.push('/employee/dashboard'), 1500)
     } catch (err:any) {
       setMsg({ type:'error', text: err.response?.data?.error || 'Failed to raise ticket' })
     } finally {
@@ -54,9 +85,9 @@ export default function RaiseTicket() {
       <PageHeader breadcrumb="RAISE TICKET" title="Raise IT Support Ticket" subtitle="Submit a new request — our team responds within 4 business hours" />
       {msg && <Alert type={msg.type} message={msg.text} />}
 
-      {/* Your Details — compact inline strip */}
+      {/* Your Details */}
       <div className="card" style={{ marginBottom:'0.9rem', padding:'0.9rem 1.2rem', display:'flex', alignItems:'center', gap:'1.8rem', flexWrap:'wrap' }}>
-        {[['Name', user?.name||'—'],['Employee ID', user?.emp_id||'—'],['Department', user?.dept||'—']].map(([l,v], i)=>(
+        {[['Name', user?.name||'—'],['Employee ID', user?.emp_id||'—'],['Department', user?.department || user?.dept || '—']].map(([l,v], i)=>(
           <div key={l} style={{ display:'flex', alignItems:'center', gap:10 }}>
             {i > 0 && <div style={{ width:1, height:26, background:'var(--border)' }} />}
             <div>
@@ -95,11 +126,17 @@ export default function RaiseTicket() {
                 <input required value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})} placeholder="Brief description of the issue" style={inp}/>
               </FG>
               <FG label="Detailed Description *" full>
-                <textarea required value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Describe in detail: what happened, when it started, any error messages..." style={{...inp,minHeight:100,resize:'vertical'}}/>
-              </FG>
-              <FG label="Asset / Device (optional)">
-                <input value={form.asset} onChange={e=>setForm({...form,asset:e.target.value})} placeholder="e.g. Dell Laptop-HR-042" style={inp}/>
-              </FG>
+                <textarea required value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Describe in detail: what happened, when it started, any error messages..." style={{...inp,minHeight:100,resize:'vertical'}}/></FG>
+              <FG label="Asset / Device (optional)" full>
+  <select value={form.asset} onChange={e=>setForm({...form,asset:e.target.value})} style={inp}>
+    <option value="">— No Asset / General Issue —</option>
+    {myAssets.map((a:any) => (
+      <option key={a._id || a.id} value={a.asset_code}>
+        {a.asset_code} — {a.name}
+      </option>
+    ))}
+  </select>
+</FG>
               <FG label="Preferred Contact">
                 <select value={form.contact_pref} onChange={e=>setForm({...form,contact_pref:e.target.value})} style={inp}>
                   <option>Email</option><option>Phone</option><option>In-Person</option>
@@ -124,7 +161,8 @@ export default function RaiseTicket() {
               </FG>
             </div>
             <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:'1.2rem' }}>
-<button type="button" onClick={()=>router.push(user?.role === 'admin' ? '/admin/dashboard' : '/employee/dashboard')} style={{ padding:'7px 16px', borderRadius:6, border:'1px solid var(--border)', background:'transparent', color:'var(--text-muted)', cursor:'pointer', fontSize:'0.78rem', fontWeight:600 }}>Cancel</button>              <button type="submit" disabled={loading} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 16px', borderRadius:6, border:'none', background:'var(--red-primary)', color:'#fff', cursor:'pointer', fontSize:'0.78rem', fontWeight:600, opacity: loading ? 0.7 : 1 }}>
+              <button type="button" onClick={()=>router.push(user?.role === 'admin' ? '/admin/dashboard' : '/employee/dashboard')} style={{ padding:'7px 16px', borderRadius:6, border:'1px solid var(--border)', background:'transparent', color:'var(--text-muted)', cursor:'pointer', fontSize:'0.78rem', fontWeight:600 }}>Cancel</button>
+              <button type="submit" disabled={loading} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 16px', borderRadius:6, border:'none', background:'var(--red-primary)', color:'#fff', cursor:'pointer', fontSize:'0.78rem', fontWeight:600, opacity: loading ? 0.7 : 1 }}>
                 <Ticket size={14}/> {loading?'Submitting...':'Submit Ticket'}
               </button>
             </div>
