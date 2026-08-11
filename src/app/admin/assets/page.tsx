@@ -154,8 +154,9 @@ const AssetForm = ({ existing, onSuccess, onCancel, setMsg, employees }: any) =>
 
     try {
       if (existing) {
-        // Single edit
-        const payload = { ...shared, ...rows[0] }
+        // Single edit — assigned_to ah touch pannama (already assign/unassign buttons vachi handle pannurom)
+        const { assigned_to, ...sharedWithoutAssign } = shared
+        const payload = { ...sharedWithoutAssign, ...rows[0] }
         await api.patch(`/assets/${existing._id || existing.id}`, payload)
         setMsg({ type: 'success', text: 'Asset updated!' })
       } else {
