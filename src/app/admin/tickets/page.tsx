@@ -28,7 +28,7 @@ export default function AdminTicketsPage() {
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState<any>(null)
   const [selected, setSelected] = useState<string[]>([])
-const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: 'single' | 'bulk', id?: string }>({ show: false, type: 'single' })
+  const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: 'single' | 'bulk', id?: string }>({ show: false, type: 'single' })
   const [refreshing, setRefreshing] = useState(false)
   
 
@@ -154,13 +154,10 @@ const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: 'single'
               ) : (
                 tickets.map((t: any) => (
                   <tr key={t.id || t._id}
-                    onClick={() => router.push(`/admin/tickets/${t._id || t.id}`)}
-                    style={{ borderBottom: '1px solid var(--border-mid)', cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(198,40,40,0.04)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    style={{ borderBottom: '1px solid var(--border-mid)' }}
                   >
-                    {/* ✅ Checkbox column */}
-                    <td style={{ padding: '9px 0.9rem' }} onClick={e => e.stopPropagation()}>
+                    {/* Checkbox column */}
+                    <td style={{ padding: '9px 0.9rem' }}>
                       <input 
                         type="checkbox" 
                         checked={selected.includes(t._id || t.id)} 
@@ -195,7 +192,7 @@ const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: 'single'
                     </td>
 
                     {/* ACTION */}
-                    <td style={{ padding: '9px 0.9rem' }} onClick={e => e.stopPropagation()}>
+                    <td style={{ padding: '9px 0.9rem' }}>
                       <div style={{ display: 'flex', gap: 5 }}>
                         <button
                           onClick={() => router.push(`/admin/tickets/${t._id || t.id}`)}
@@ -219,7 +216,7 @@ const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: 'single'
         </div>
       </div>
 
-{/* CUSTOM CONFIRM MODAL */}
+      {/* CUSTOM CONFIRM MODAL */}
       {confirmModal.show && (
         <div
           onClick={() => setConfirmModal({ show: false, type: confirmModal.type })}
@@ -257,4 +254,4 @@ const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: 'single'
       )}
     </AppLayout>
   )
-} 
+}
