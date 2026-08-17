@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Bell, Clock, User, Info, Circle, Paperclip, Download, MessageSquare, Send } from 'lucide-react'
+import { Bell, Clock, User, Info, Circle, Paperclip, Download, MessageSquare, Send, FileEdit, Star } from 'lucide-react'
 
 import AppLayout from '@/components/AppLayout'
 import {
@@ -301,19 +301,22 @@ export default function TicketDetail() {
           borderBottom: '1px solid var(--border)',
           background: 'var(--bg-mid)'
         }}>
-          <strong style={{ fontSize: '0.85rem' }}>📝 Customer Feedback</strong>
-        </div>
+          <strong style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}><FileEdit size={14}/> Customer Feedback</strong>
+          </div>
 
         <div style={{ padding: '1rem' }}>
           <div style={{ marginBottom: '0.8rem' }}>
             <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Rating</div>
-            <div style={{ fontSize: '1.3rem' }}>
-              {[1, 2, 3, 4, 5].map(i => (
-                <span key={i} style={{ color: i <= ticket.feedback.rating ? '#FFD700' : '#ccc' }}>
-                  {i <= ticket.feedback.rating ? '⭐' : '☆'}
-                </span>
-              ))}
-            </div>
+            <div style={{ display: 'flex', gap: 2 }}>
+  {[1, 2, 3, 4, 5].map(i => (
+    <Star
+      key={i}
+      size={18}
+      fill={i <= ticket.feedback.rating ? '#f59e0b' : 'none'}
+      color={i <= ticket.feedback.rating ? '#f59e0b' : 'var(--border)'}
+    />
+  ))}
+</div>
           </div>
 
           <div style={{ marginBottom: '0.8rem' }}>

@@ -57,20 +57,141 @@ export default function MyAssets() {
       )}
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div
+  style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '1rem',
+    marginBottom: '1.5rem',
+  }}
+>
+  {[
+    {
+      label: 'Total Assigned',
+      value: assets.length,
+      color: '#1565c0',
+    },
+    {
+      label: 'Active',
+      value: assets.filter(
+        a => a.status === 'Assigned'
+      ).length,
+      color: '#2e7d32',
+    },
+    {
+      label: 'Under Repair',
+      value: assets.filter(
+        a => a.status === 'Under Repair'
+      ).length,
+      color: '#ef6c00',
+    },
+    {
+      label: 'Damaged',
+      value: assets.filter(
+        a => a.status === 'Damaged'
+      ).length,
+      color: '#c62828',
+    },
+  ].map(s => (
+    <div
+      key={s.label}
+      className="card"
+      style={{
+        padding: '1.2rem 1.4rem',
+      }}
+    >
+      <div
+        style={{
+          fontSize: '1.8rem',
+          fontWeight: 700,
+          color: s.color,
+        }}
+      >
+        {s.value}
+      </div>
+
+      <div
+        style={{
+          fontSize: '0.78rem',
+          color: 'var(--text-muted)',
+          marginTop: 4,
+        }}
+      >
+        {s.label}
+      </div>
+    </div>
+  ))}
+</div>
+          
+      {/* Stats */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '1rem',
+          marginBottom: '1.5rem',
+        }}
+      >
         {[
-          { label: 'Total Assigned', value: assets.length, color: '#1565c0' },
-          { label: 'Active', value: assets.filter(a => a.status === 'Assigned').length, color: '#2e7d32' },
-          { label: 'Under Repair', value: assets.filter(a => a.status === 'Under Repair').length, color: '#ef6c00' },
+          {
+            label: 'Total Assigned',
+            value: assets.length,
+            color: '#1565c0',
+          },
+          {
+            label: 'Active',
+            value: assets.filter(
+              a => a.status === 'Assigned'
+            ).length,
+            color: '#2e7d32',
+          },
+          {
+            label: 'Under Repair',
+            value: assets.filter(
+              a => a.status === 'Under Repair'
+            ).length,
+            color: '#ef6c00',
+          },
+          {
+            label: 'Damaged',
+            value: assets.filter(
+              a => a.status === 'Damaged'
+            ).length,
+            color: '#c62828',
+          },
         ].map(s => (
-          <div key={s.label} className="card" style={{ padding: '1.2rem 1.4rem' }}>
-            <div style={{ fontSize: '1.8rem', fontWeight: 700, color: s.color }}>{s.value}</div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>{s.label}</div>
+          <div
+            key={s.label}
+            className="card"
+            style={{
+              padding: '1.2rem 1.4rem',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '1.8rem',
+                fontWeight: 700,
+                color: s.color,
+              }}
+            >
+              {s.value}
+            </div>
+
+            <div
+              style={{
+                fontSize: '0.78rem',
+                color: 'var(--text-muted)',
+                marginTop: 4,
+              }}
+            >
+              {s.label}
+            </div>
           </div>
         ))}
       </div>
 
       {/* Assets Grid */}
+      
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading assets...</div>
       ) : assets.length === 0 ? (
