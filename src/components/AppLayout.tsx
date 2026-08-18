@@ -12,7 +12,10 @@ function initials(name?: string) {
   return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase();
 }
 
-interface LayoutProps { children: React.ReactNode; role: 'admin' | 'employee' }
+interface LayoutProps { 
+  children: React.ReactNode; 
+  role: 'admin' | 'employee' 
+}
 
 export default function AppLayout({ children, role }: LayoutProps) {
   const router = useRouter()
@@ -21,6 +24,7 @@ export default function AppLayout({ children, role }: LayoutProps) {
   const [notifCount, setNotifCount] = useState(0)
   const [dark, setDark] = useState(false)
   const [sideOpen, setSideOpen] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   // Edit Profile Modal state
   const [showEdit, setShowEdit] = useState(false)
@@ -29,19 +33,37 @@ export default function AppLayout({ children, role }: LayoutProps) {
   const [editSaving, setEditSaving] = useState(false)
   const [editMounted, setEditMounted] = useState(false)
 
+  // Initial mount check
   useEffect(() => {
-    if (!isLoggedIn()) { router.replace('/login'); return }
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    // Browser-only code
+    if (typeof window === 'undefined' || !mounted) return;
+    
+    if (!isLoggedIn()) { 
+      router.replace('/login'); 
+      return;
+    }
+    
     const u = getUser()
-    if (!u || u.role !== role) { router.replace(role === 'admin' ? '/employee/dashboard' : '/login'); return }
+    if (!u || u.role !== role) { 
+      router.replace(role === 'admin' ? '/employee/dashboard' : '/login'); 
+      return;
+    }
+    
     setUser(u)
+    
+    // Safe theme loading
     const savedDark = localStorage.getItem('td_theme') === 'dark'
     setDark(savedDark)
     if (savedDark) document.documentElement.classList.add('dark')
+    
     fetchNotifs()
-
     const interval = setInterval(fetchNotifs, 15000)
     return () => clearInterval(interval)
-  }, [router, role])
+  }, [router, role, mounted])
 
   useEffect(() => {
     if (showEdit) {
@@ -60,15 +82,25 @@ export default function AppLayout({ children, role }: LayoutProps) {
   }
 
   const toggleDark = () => {
-    const nd = !dark; setDark(nd)
+    if (typeof window === 'undefined') return;
+    const nd = !dark; 
+    setDark(nd)
     localStorage.setItem('td_theme', nd ? 'dark' : 'light')
     document.documentElement.classList.toggle('dark', nd)
   }
 
-  const logout = () => { clearAuth(); router.replace('/login') }
+  const logout = () => { 
+    clearAuth(); 
+    router.replace('/login') 
+  }
 
   const openEdit = () => {
-    setEditData({ name: user?.name || '', phone: user?.phone || '', current_password: '', new_password: '' })
+    setEditData({ 
+      name: user?.name || '', 
+      phone: user?.phone || '', 
+      current_password: '', 
+      new_password: '' 
+    })
     setEditMsg(null)
     setShowEdit(true)
   }
@@ -78,30 +110,46 @@ export default function AppLayout({ children, role }: LayoutProps) {
     try {
       setEditSaving(true)
       setEditMsg(null)
-      const endpoint = role === 'admin'
-        ? `/employees/${user?.id || user?._id}`
-        : `/employees/${user?.id || user?._id}`
+      const endpoint = `/employees/${user?.id || user?._id}`
       await api.patch(endpoint, {
         name: editData.name,
         phone: editData.phone,
-        ...(editData.new_password ? { new_password: editData.new_password, current_password: editData.current_password } : {})
+        ...(editData.new_password ? { 
+          new_password: editData.new_password, 
+          current_password: editData.current_password 
+        } : {})
       })
       const updated = { ...user, name: editData.name, phone: editData.phone }
-      localStorage.setItem('td_user', JSON.stringify(updated))
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('td_user', JSON.stringify(updated))
+      }
       setUser(updated)
       setEditMsg({ type: 'success', text: 'Profile updated successfully!' })
       setTimeout(() => setShowEdit(false), 1200)
     } catch (err: any) {
-      setEditMsg({ type: 'error', text: err?.response?.data?.error || 'Update failed' })
+      setEditMsg({ 
+        type: 'error', 
+        text: err?.response?.data?.error || 'Update failed' 
+      })
     } finally {
       setEditSaving(false)
     }
   }
 
+  // Don't render until mounted (prevent SSR issues)
+  if (!mounted) {
+    return null;
+  }
+
   const inp = {
-    width: '100%', padding: '10px 12px', borderRadius: 6,
-    border: '1px solid var(--border)', background: 'var(--bg-input)',
-    color: 'var(--text-main)', fontSize: '0.85rem', boxSizing: 'border-box' as const
+    width: '100%', 
+    padding: '10px 12px', 
+    borderRadius: 6,
+    border: '1px solid var(--border)', 
+    background: 'var(--bg-input)',
+    color: 'var(--text-main)', 
+    fontSize: '0.85rem', 
+    boxSizing: 'border-box' as const
   }
 
   const adminSide = [
