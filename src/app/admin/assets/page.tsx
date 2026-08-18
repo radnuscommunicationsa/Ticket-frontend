@@ -46,6 +46,22 @@ const CATS = [
   'Other',
 ]
 
+const BRANDS = [
+  'Dell',
+  'HP',
+  'Lenovo',
+  'Apple',
+  'Asus',
+  'Acer',
+  'Samsung',
+  'LG',
+  'Cisco',
+  'TP-Link',
+  'Logitech',
+  'Canon',
+  'Epson',  
+]
+
 const STATUS_LIST = [
   'Available',
   'Assigned',
@@ -989,19 +1005,42 @@ function AssetForm({
           gap: '1rem',
         }}
       >
-        <FormGroup label="Brand">
-          <input
-            value={shared.brand}
-            onChange={(e) =>
-              updateShared(
-                'brand',
-                e.target.value
-              )
-            }
-            placeholder="Dell"
-            style={inputStyle}
-          />
-        </FormGroup>
+      <FormGroup label="Brand">
+  <select
+    value={
+      shared.brand === '' || BRANDS.includes(shared.brand)
+        ? shared.brand
+        : 'Other'
+    }
+    onChange={(e) => {
+      if (e.target.value === 'Other') {
+        updateShared('brand', '__other__')
+      } else {
+        updateShared('brand', e.target.value)
+      }
+    }}
+    style={inputStyle}
+  >
+    <option value="">— Select Brand —</option>
+    {BRANDS.map((brand) => (
+      <option key={brand} value={brand}>
+        {brand}
+      </option>
+    ))}
+    <option value="Other">Other</option>
+  </select>
+
+  {shared.brand === '__other__' && (
+    <input
+      value=""
+      onChange={(e) => updateShared('brand', e.target.value)}
+      placeholder="Enter brand name"
+      autoFocus
+      style={{ ...inputStyle, marginTop: 6 }}
+    />
+  )}
+</FormGroup>
+
 
         <FormGroup label="Model">
           <input

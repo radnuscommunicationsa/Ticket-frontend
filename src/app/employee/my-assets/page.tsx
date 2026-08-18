@@ -196,10 +196,12 @@ export default function MyAssets() {
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading assets...</div>
       ) : assets.length === 0 ? (
         <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📦</div>
-          <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>No Assets Assigned</div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>You have no IT assets assigned to you currently.</div>
-        </div>
+  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+    <Package size={48} strokeWidth={1.5} color="var(--text-muted)" />
+  </div>
+  <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>No Assets Assigned</div>
+  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>You have no IT assets assigned to you currently.</div>
+</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
           {assets.map((a: any) => (

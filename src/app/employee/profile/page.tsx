@@ -18,6 +18,7 @@ function initials(n:string){ if(!n) return ''; const p=n.split(' '); return (p[0
 
 export default function Profile() {
   const [profile, setProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState<{type:'success'|'error',text:string}|null>(null)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -36,10 +37,19 @@ export default function Profile() {
         setPhone(userData?.phone || '')
       } catch (err) {
         console.error('Profile fetch error:', err)
+      } finally {
+        setLoading(false)
       }
     }
     loadData()
   }, [])
+
+  // Auto-hide message after 4 seconds (same as AdminAssets page)
+  useEffect(() => {
+    if (!msg) return
+    const timer = setTimeout(() => setMsg(null), 4000)
+    return () => clearTimeout(timer)
+  }, [msg])
 
   const calcStrength = (p: string) => {
     let s = 0
@@ -76,6 +86,31 @@ export default function Profile() {
 
   const strColors = ['','#e53935','#e53935','#fb8c00','#f9a825','#2e7d32']
   const strLabels = ['','Very Weak','Weak','Good','Strong','Very Strong']
+
+  // Loading state — shown while /auth/me is being fetched
+  if (loading) {
+    return (
+      <AppLayout role="employee">
+        <PageHeader breadcrumb="MY PROFILE" title="My Profile" subtitle="Update your personal info and password" />
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4rem', color:'var(--text-muted)', gap:10 }}>
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              border: '3px solid var(--border)',
+              borderTopColor: 'var(--red-primary)',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+            }}
+          />
+          <span style={{ fontSize:'0.85rem' }}>Loading profile...</span>
+        </div>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+      </AppLayout>
+    )
+  }
 
   return (
     <AppLayout role="employee">

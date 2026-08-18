@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert } from '@/components/ui'
 import api from '@/lib/api'
@@ -22,15 +22,27 @@ const PRIORITY_COLOR: Record<string, string> = {
   critical: '#b71c1c',
 }
 
+const STATUS_OPTIONS = ['all', 'open', 'in-progress', 'resolved', 'closed']
+
 export default function AdminTicketsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState<any>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: 'single' | 'bulk', id?: string }>({ show: false, type: 'single' })
   const [refreshing, setRefreshing] = useState(false)
-  
+
+  // Initialize from URL (?status=open) instead of always defaulting to 'all'
+  const [statusFilter, setStatusFilter] = useState<string>(
+    searchParams.get('status') || 'all'
+  )
+  // Optional: supports the ?priority=critical the dashboard also sends
+  const [priorityFilter, setPriorityFilter] = useState<string>(
+    searchParams.get('priority') || 'all'
+  )
 
   const loadTickets = async () => {
     try {
@@ -47,6 +59,17 @@ export default function AdminTicketsPage() {
   }
 
   useEffect(() => { loadTickets() }, [])
+
+  // Keep filter state in sync if the URL changes while already on this page
+  // (e.g. clicking a different stat card from the dashboard via router.push)
+  useEffect(() => {
+    setStatusFilter(searchParams.get('status') || 'all')
+    setPriorityFilter(searchParams.get('priority') || 'all')
+  }, [searchParams])
+
+  // Reset selection whenever the filter changes so you don't accidentally
+  // bulk-delete tickets that are no longer visible.
+  useEffect(() => { setSelected([]) }, [statusFilter, priorityFilter])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -71,11 +94,17 @@ export default function AdminTicketsPage() {
     }
   }
 
+  const filteredTickets = tickets.filter((t: any) => {
+    const statusOk = statusFilter === 'all' || t.status === statusFilter
+    const priorityOk = priorityFilter === 'all' || t.priority === priorityFilter
+    return statusOk && priorityOk
+  })
+
   const toggleSelectAll = () => {
-    if (selected.length === tickets.length) {
+    if (selected.length === filteredTickets.length) {
       setSelected([])
     } else {
-      setSelected(tickets.map((t: any) => t._id || t.id))
+      setSelected(filteredTickets.map((t: any) => t._id || t.id))
     }
   }
 
@@ -100,6 +129,20 @@ export default function AdminTicketsPage() {
     }
   }
 
+  // Update the URL when the dropdown is changed manually, so the filter is shareable/refreshable
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value)
+    const params = new URLSearchParams(searchParams.toString())
+    if (value === 'all') params.delete('status')
+    else params.set('status', value)
+    router.push(`/admin/tickets${params.toString() ? `?${params.toString()}` : ''}`)
+  }
+
+  const statusCounts: Record<string, number> = tickets.reduce((acc: Record<string, number>, t: any) => {
+    acc[t.status] = (acc[t.status] || 0) + 1
+    return acc
+  }, {})
+
   return (
     <AppLayout role="admin">
       <PageHeader breadcrumb="TICKETS" title="All Tickets" subtitle="Manage all employee support tickets" />
@@ -108,9 +151,34 @@ export default function AdminTicketsPage() {
 
       <div className="card" style={{ overflow: 'hidden' }}>
         {/* HEADER */}
-        <div style={{ padding: '0.8rem 1.1rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Total Tickets ({tickets.length})</span>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ padding: '0.8rem 1.1rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
+            Total Tickets ({filteredTickets.length}{statusFilter !== 'all' || priorityFilter !== 'all' ? ` of ${tickets.length}` : ''})
+          </span>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* STATUS FILTER */}
+            <select
+              value={statusFilter}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              style={{
+                padding: '6px 10px',
+                background: 'var(--bg-card)',
+                color: 'var(--text-sub)',
+                border: '1px solid var(--border)',
+                borderRadius: 5,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s === 'all' ? `All Statuses (${tickets.length})` : `${s.charAt(0).toUpperCase() + s.slice(1)} (${statusCounts[s] || 0})`}
+                </option>
+              ))}
+            </select>
+
             {selected.length > 0 && (
               <button
                 onClick={handleBulkDelete}
@@ -136,7 +204,7 @@ export default function AdminTicketsPage() {
             <thead>
               <tr>
                 <th style={{ padding: '9px 0.9rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)' }}>
-                  <input type="checkbox" checked={tickets.length > 0 && selected.length === tickets.length} onChange={toggleSelectAll} />
+                  <input type="checkbox" checked={filteredTickets.length > 0 && selected.length === filteredTickets.length} onChange={toggleSelectAll} />
                 </th>
                 {['Ticket No', 'Subject', 'Employee', 'Department', 'Priority', 'Status', 'Created', 'Action'].map((h) => (
                   <th key={h} style={{ padding: '9px 0.9rem', textAlign: 'left', fontSize: '0.63rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', background: 'var(--bg-mid)', whiteSpace: 'nowrap' }}>
@@ -149,22 +217,20 @@ export default function AdminTicketsPage() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading tickets...</td></tr> 
-              ) : tickets.length === 0 ? (
-                <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No tickets found.</td></tr>  
+              ) : filteredTickets.length === 0 ? (
+                <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  {statusFilter === 'all' ? 'No tickets found.' : `No ${statusFilter} tickets found.`}
+                </td></tr>  
               ) : (
-                tickets.map((t: any) => (
-                  <tr key={t.id || t._id}
-                    style={{ borderBottom: '1px solid var(--border-mid)' }}
-                  >
-                    {/* Checkbox column */}
+                filteredTickets.map((t: any) => (
+                  <tr key={t.id || t._id} style={{ borderBottom: '1px solid var(--border-mid)' }}>
                     <td style={{ padding: '9px 0.9rem' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={selected.includes(t._id || t.id)} 
-                        onChange={() => toggleSelectOne(t._id || t.id)} 
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(t._id || t.id)}
+                        onChange={() => toggleSelectOne(t._id || t.id)}
                       />
                     </td>
-
                     <td style={{ padding: '9px 0.9rem', fontFamily: 'monospace', fontWeight: 700, color: 'var(--red-primary)', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
                       {t.ticket_no}
                     </td>
@@ -190,8 +256,6 @@ export default function AdminTicketsPage() {
                     <td style={{ padding: '9px 0.9rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
                       {new Date(t.created_at || t.createdAt).toLocaleDateString()}
                     </td>
-
-                    {/* ACTION */}
                     <td style={{ padding: '9px 0.9rem' }}>
                       <div style={{ display: 'flex', gap: 5 }}>
                         <button

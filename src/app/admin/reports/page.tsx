@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import AppLayout from '@/components/AppLayout'
 import api from '@/lib/api'
 import {
@@ -587,7 +588,7 @@ function downloadExcel(
 }
 
 /* =========================================================
-   STAT CARD
+   STAT CARD (now clickable — pass onClick to navigate)
 ========================================================= */
 
 interface StatCardProps {
@@ -596,6 +597,7 @@ interface StatCardProps {
   icon: React.ReactNode
   accentColor?: string
   subtitle?: string
+  onClick?: () => void
 }
 
 function StatCard({
@@ -604,9 +606,15 @@ function StatCard({
   icon,
   accentColor = '#C62828',
   subtitle,
+  onClick,
 }: StatCardProps) {
+  const [hovered, setHovered] = useState(false)
+
   return (
     <div
+      onClick={onClick}
+      onMouseEnter={() => onClick && setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         position: 'relative',
         overflow: 'hidden',
@@ -614,6 +622,10 @@ function StatCard({
         border: '1px solid var(--border)',
         background: 'var(--bg-mid)',
         padding: 18,
+        cursor: onClick ? 'pointer' : 'default',
+        transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
+        boxShadow: hovered ? `0 8px 22px ${accentColor}30` : 'none',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
       }}
     >
       <div
@@ -661,7 +673,6 @@ function StatCard({
           marginTop: 14,
           fontSize: '2rem',
           fontWeight: 900,
-          fontFamily: 'IBM Plex Mono, monospace',
           color: accentColor,
         }}
       >
@@ -748,25 +759,42 @@ function SectionCard({
 }
 
 /* =========================================================
-   PROGRESS BAR
+   PROGRESS BAR (now clickable)
 ========================================================= */
 
 function ProgressBar({
   value,
   label,
   color,
+  onClick,
 }: {
   value: number
   label: string
   color: string
+  onClick?: () => void
 }) {
+  const [hovered, setHovered] = useState(false)
+
   const safeValue = Math.min(
     100,
     Math.max(0, value)
   )
 
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div
+      onClick={onClick}
+      onMouseEnter={() => onClick && setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        marginBottom: 16,
+        cursor: onClick ? 'pointer' : 'default',
+        padding: onClick ? '6px 8px' : 0,
+        margin: onClick ? '-6px -8px 10px' : '0 0 16px',
+        borderRadius: 8,
+        background: hovered ? `${color}0c` : 'transparent',
+        transition: 'background 0.15s ease',
+      }}
+    >
       <div
         style={{
           display: 'flex',
@@ -942,6 +970,8 @@ function EmployeeTable({
 ========================================================= */
 
 export default function AdminReports() {
+  const router = useRouter()
+
   const [year, setYear] =
     useState<number>(CURRENT_YEAR)
 
@@ -994,6 +1024,21 @@ export default function AdminReports() {
   useEffect(() => {
     load()
   }, [])
+
+  /* =====================================================
+     NAVIGATION HELPERS — clicking a card takes you to the
+     matching filtered view on Tickets / Assets pages
+  ===================================================== */
+
+  const goToTickets = (params: Record<string, string> = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    router.push(`/admin/tickets${qs ? `?${qs}` : ''}`)
+  }
+
+  const goToAssets = (params: Record<string, string> = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    router.push(`/admin/assets${qs ? `?${qs}` : ''}`)
+  }
 
   /* =====================================================
      CALCULATIONS
@@ -1062,8 +1107,7 @@ export default function AdminReports() {
           padding: '2rem',
           minHeight: '100vh',
           background: 'var(--bg-main)',
-          fontFamily: 'sans-serif',
-        }}
+      }}
       >
 
         {/* =================================================
@@ -1348,6 +1392,7 @@ export default function AdminReports() {
                   label="Total Tickets"
                   value={totalTickets}
                   icon={<Ticket size={18} />}
+                  onClick={() => goToTickets()}
                 />
 
                 <StatCard
@@ -1359,6 +1404,7 @@ export default function AdminReports() {
                       size={18}
                     />
                   }
+                  onClick={() => goToTickets({ status: 'open' })}
                 />
 
                 <StatCard
@@ -1370,6 +1416,7 @@ export default function AdminReports() {
                       size={18}
                     />
                   }
+                  onClick={() => goToTickets({ status: 'resolved' })}
                 />
 
                 <StatCard
@@ -1377,6 +1424,7 @@ export default function AdminReports() {
                   value={`${closureRate}%`}
                   accentColor="#1565C0"
                   icon={<Lock size={18} />}
+                  onClick={() => goToTickets({ status: 'closed' })}
                 />
 
                 <StatCard
@@ -1422,6 +1470,7 @@ export default function AdminReports() {
                   value={openTickets}
                   accentColor="#E65100"
                   icon={<Inbox size={18} />}
+                  onClick={() => goToTickets({ status: 'open' })}
                 />
 
                 <StatCard
@@ -1433,6 +1482,7 @@ export default function AdminReports() {
                       size={18}
                     />
                   }
+                  onClick={() => goToTickets({ status: 'in-progress' })}
                 />
 
                 <StatCard
@@ -1444,6 +1494,7 @@ export default function AdminReports() {
                       size={18}
                     />
                   }
+                  onClick={() => goToTickets({ status: 'resolved' })}
                 />
 
                 <StatCard
@@ -1451,6 +1502,7 @@ export default function AdminReports() {
                   value={closed}
                   accentColor="#546E7A"
                   icon={<Lock size={18} />}
+                  onClick={() => goToTickets({ status: 'closed' })}
                 />
               </div>
 
@@ -1472,6 +1524,7 @@ export default function AdminReports() {
                     totalTickets
                   )}
                   color="#B71C1C"
+                  onClick={() => goToTickets({ priority: 'critical' })}
                 />
 
                 <ProgressBar
@@ -1481,6 +1534,7 @@ export default function AdminReports() {
                     totalTickets
                   )}
                   color="#E65100"
+                  onClick={() => goToTickets({ priority: 'high' })}
                 />
 
                 <ProgressBar
@@ -1490,6 +1544,7 @@ export default function AdminReports() {
                     totalTickets
                   )}
                   color="#F9A825"
+                  onClick={() => goToTickets({ priority: 'medium' })}
                 />
 
                 <ProgressBar
@@ -1499,6 +1554,7 @@ export default function AdminReports() {
                     totalTickets
                   )}
                   color="#2E7D32"
+                  onClick={() => goToTickets({ priority: 'low' })}
                 />
               </div>
 
@@ -1560,7 +1616,19 @@ export default function AdminReports() {
                     <tbody>
                       {data.departmentData.map(
                         (d, i) => (
-                          <tr key={i}>
+                          <tr
+                            key={i}
+                            onClick={() =>
+                              goToTickets({ department: d.department })
+                            }
+                            style={{ cursor: 'pointer' }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = 'rgba(198,40,40,0.04)')
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = 'transparent')
+                            }
+                          >
                             <td
                               style={{
                                 padding: 12,
@@ -1648,6 +1716,7 @@ export default function AdminReports() {
                           size={18}
                         />
                       }
+                      onClick={() => goToAssets()}
                     />
 
                     <StatCard
@@ -1659,6 +1728,7 @@ export default function AdminReports() {
                           size={18}
                         />
                       }
+                      onClick={() => goToAssets({ status: 'Assigned' })}
                     />
 
                     <StatCard
@@ -1670,6 +1740,7 @@ export default function AdminReports() {
                           size={18}
                         />
                       }
+                      onClick={() => goToAssets({ status: 'Available' })}
                     />
 
                     <StatCard
@@ -1695,6 +1766,7 @@ export default function AdminReports() {
                           size={18}
                         />
                       }
+                      onClick={() => goToAssets({ status: 'Under Repair' })}
                     />
 
                     <StatCard
@@ -1708,6 +1780,7 @@ export default function AdminReports() {
                           size={18}
                         />
                       }
+                      onClick={() => goToAssets({ status: 'Damaged' })}
                     />
                   </div>
 
@@ -1723,6 +1796,7 @@ export default function AdminReports() {
                         assetUtilization
                       }
                       color="#1565C0"
+                      onClick={() => goToAssets({ status: 'Assigned' })}
                     />
                   </div>
 
@@ -1742,32 +1816,43 @@ export default function AdminReports() {
                       [
                         'Laptops',
                         asset.laptops,
+                        'Laptop',
                       ],
                       [
                         'CPU',
                         asset.desktops,
+                        'CPU',
                       ],
                       [
                         'Monitors',
                         asset.monitors,
+                        'Monitor',
                       ],
                       [
                         'Printers',
                         asset.printers,
+                        'Printer',
                       ],
                       [
                         'Accessories',
                         asset.accessories,
+                        null,
                       ],
                     ].map(
-                      ([label, value]) => (
+                      ([label, value, categoryValue]) => (
                         <div
                           key={String(label)}
+                          onClick={
+                            categoryValue
+                              ? () => goToAssets({ category: String(categoryValue) })
+                              : undefined
+                          }
                           style={{
                             padding: 14,
                             border:
                               '1px solid var(--border)',
                             borderRadius: 8,
+                            cursor: categoryValue ? 'pointer' : 'default',
                           }}
                         >
                           <div
