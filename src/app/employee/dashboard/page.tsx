@@ -44,7 +44,7 @@ export default function EmployeeDashboard() {
         <div style={{ color:'var(--text-muted)' }}>Loading...</div>
       ) : (
         <>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'0.9rem', marginBottom:'1.4rem' }}>
+          <div className="stats-grid" style={{ marginBottom:'1.4rem' }}>
             <StatCard label="Total Raised" value={stats.total}       sub="All time"         color="#7c3aed" />
             <StatCard label="Open"         value={stats.open}        sub="Awaiting IT team"  color="#a855f7" />
             <StatCard label="In Progress"  value={stats.in_progress} sub="Being worked on"  color="#f59e0b" />
@@ -52,13 +52,15 @@ export default function EmployeeDashboard() {
           </div>
 
           <div className="card">
-            <div style={{ padding:'0.9rem 1.2rem', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg-mid)' }}>
+            <div style={{ padding:'0.9rem 1.2rem', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg-mid)', flexWrap: 'wrap', gap: 8 }}>
               <span style={{ fontSize:'0.85rem', fontWeight:600 }}>My Tickets</span>
               <Link href="/employee/raise-ticket" style={{ display:'flex', alignItems:'center', gap:6, background:'var(--red-primary)', color:'#fff', padding:'6px 14px', borderRadius:6, fontSize:'0.76rem', fontWeight:600, textDecoration:'none' }}>
                 <Plus size={13}/> Raise New Ticket
               </Link>
             </div>
-            <div style={{ overflowX:'auto' }}>
+
+            {/* DESKTOP: full table */}
+            <div className="desktop-table-wrap" style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse' }}>
                 <thead>
                   <tr>
@@ -92,6 +94,44 @@ export default function EmployeeDashboard() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* MOBILE: stacked card list */}
+            <div className="mobile-ticket-list" style={{ display:'none', flexDirection:'column', padding:'0.6rem' }}>
+              {stats.tickets.length === 0 ? (
+                <div style={{ padding:'2rem 1rem', textAlign:'center', color:'var(--text-muted)', fontSize:'0.85rem' }}>
+                  You haven't raised any tickets yet.{' '}
+                  <Link href="/employee/raise-ticket" style={{ color:'var(--red-primary)' }}>Raise your first ticket →</Link>
+                </div>
+              ) : stats.tickets.map((t: any) => (
+                <div
+                  key={t._id || t.id}
+                  style={{
+                    border: '1px solid var(--border-mid)',
+                    borderRadius: 10,
+                    padding: '0.8rem 0.9rem',
+                    marginBottom: '0.6rem',
+                    background: 'var(--bg-mid)',
+                  }}
+                >
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6, gap: 8 }}>
+                    <span style={{ color:'var(--red-primary)', fontFamily:'IBM Plex Mono', fontSize:'0.75rem', fontWeight:700 }}>{t.ticket_no}</span>
+                    <StatusBadge status={t.status} />
+                  </div>
+                  <div style={{ fontSize:'0.86rem', fontWeight:600, color:'var(--text-main)', marginBottom:6 }}>{t.subject}</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', fontSize:'0.76rem', color:'var(--text-muted)', marginBottom:8 }}>
+                    <span>{t.category}</span>
+                    <span>·</span>
+                    <PriorityBadge priority={t.priority} />
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <span style={{ fontSize:'0.72rem', color:'var(--text-muted)', fontFamily:'IBM Plex Mono' }}>
+                      {new Date(t.created_at || t.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
+                    </span>
+                    <Link href={`/employee/view-ticket/${t._id || t.id}`} style={{ background:'transparent', color:'var(--red-primary)', border:'1px solid rgba(124,58,237,0.3)', borderRadius:5, padding:'4px 10px', fontSize:'0.7rem', fontWeight:600, textDecoration:'none' }}>View</Link>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </>

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Moon, Sun, Menu, X, LayoutDashboard, Ticket, Monitor, Users, BarChart3, Bell, UserCircle, Plus, LogOut, Tv, Star } from 'lucide-react'
+import { Moon, Sun, Menu, X, LayoutDashboard, Ticket, Monitor, Users, BarChart3, Bell, UserCircle, Plus, LogOut, Tv, Star, Home } from 'lucide-react'
 import api from '../lib/api'
 import { getUser, isLoggedIn, clearAuth } from '../lib/auth'
 
@@ -24,6 +24,7 @@ export default function AppLayout({ children, role }: LayoutProps) {
   const [notifCount, setNotifCount] = useState(0)
   const [dark, setDark] = useState(false)
   const [sideOpen, setSideOpen] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   // Edit Profile Modal state
@@ -36,6 +37,19 @@ export default function AppLayout({ children, role }: LayoutProps) {
   // Initial mount check
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  // Responsive: track viewport width, auto-close sidebar on mobile
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const checkMobile = () => {
+      const mobile = window.innerWidth <= 768
+      setIsMobile(mobile)
+      setSideOpen(!mobile) // open by default on desktop, closed on mobile
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
   useEffect(() => {
@@ -105,6 +119,11 @@ export default function AppLayout({ children, role }: LayoutProps) {
     setShowEdit(true)
   }
 
+  // Close sidebar automatically after nav click on mobile
+  const handleNavClick = () => {
+    if (isMobile) setSideOpen(false)
+  }
+
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -157,19 +176,21 @@ export default function AppLayout({ children, role }: LayoutProps) {
     { href: '/admin/tickets', icon: <Ticket size={18}/>, label: 'All Tickets' },
     { href: '/employee/raise-ticket', icon: <Plus size={18}/>, label: 'Raise Ticket' },
     { href: '/admin/assets', icon: <Monitor size={18}/>, label: 'Assets' },
+    { href: '/admin/take-home-requests', icon: <Home size={18}/>, label: 'Take Home Requests' },   // ← NEW LINE
     { href: '/admin/employees', icon: <Users size={18}/>, label: 'Employees' },
     { href: '/admin/feedback', icon: <Star size={18}/>, label: 'Feedback' },
     { href: '/admin/reports', icon: <BarChart3 size={18}/>, label: 'Monthly Report' },
     { href: '/admin/notifications', icon: <Bell size={18}/>, label: 'Notifications', badge: notifCount },
-  ]
+]
 
   const empSide = [
-    { href: '/employee/dashboard', icon: <LayoutDashboard size={18}/>, label: 'My Tickets' },
-    { href: '/employee/raise-ticket', icon: <Plus size={18}/>, label: 'Raise Ticket' },
-    { href: '/employee/my-assets', icon: <Tv size={18}/>, label: 'My Assets' },
-    { href: '/employee/notifications', icon: <Bell size={18}/>, label: 'Notifications', badge: notifCount },
-    { href: '/employee/profile', icon: <UserCircle size={18}/>, label: 'My Profile' },
-  ]
+  { href: '/employee/dashboard', icon: <LayoutDashboard size={18}/>, label: 'My Tickets' },
+  { href: '/employee/raise-ticket', icon: <Plus size={18}/>, label: 'Raise Ticket' },
+  { href: '/employee/my-assets', icon: <Tv size={18}/>, label: 'My Assets' },
+  { href: '/employee/take-home-request', icon: <Home size={18}/>, label: 'Take Home' }, // ← ADD THIS
+  { href: '/employee/notifications', icon: <Bell size={18}/>, label: 'Notifications', badge: notifCount },
+  { href: '/employee/profile', icon: <UserCircle size={18}/>, label: 'My Profile' },
+]
   const sideLinks = role === 'admin' ? adminSide : empSide
 
   return (
@@ -259,26 +280,53 @@ export default function AppLayout({ children, role }: LayoutProps) {
         </div>
       )}
 
+      {/* Mobile backdrop - closes sidebar when tapped outside */}
+      {isMobile && sideOpen && (
+        <div
+          onClick={() => setSideOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, top: 64, background: 'rgba(0,0,0,0.5)',
+            zIndex: 150, backdropFilter: 'blur(2px)',
+          }}
+        />
+      )}
+
       {/* Topbar */}
-      <div className="topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.2rem', height: 64, position: 'sticky', top: 0, zIndex: 200 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="topbar" style={{
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '0 1rem',
+  height: 64,
+  position: 'fixed',      // ← sticky -> fixed
+  top: 0,
+  left: 0,
+  right: 0,               // ← add
+  width: '100%',          // ← add
+  zIndex: 200,
+  background: 'var(--bg-card)',  // ← add (illa na transparent-a irukum)
+  borderBottom: '1px solid var(--border)'  // ← optional visual separation
+}}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <button onClick={() => setSideOpen(!sideOpen)}
-            style={{ background: 'var(--bg-mid)', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--text-main)', padding: 8, display: 'flex', alignItems: 'center', borderRadius: 8, transition: 'all 0.15s ease' }}
+            style={{ background: 'var(--bg-mid)', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--text-main)', padding: 8, display: 'flex', alignItems: 'center', borderRadius: 8, transition: 'all 0.15s ease', flexShrink: 0 }}
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--red-glow)'; e.currentTarget.style.borderColor = 'var(--red-primary)' }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-mid)'; e.currentTarget.style.borderColor = 'var(--border)' }}
           >
             {sideOpen ? <X size={20}/> : <Menu size={20}/>}
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: '1.15rem', color: 'var(--text-main)' }}>
-            <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg, var(--red-primary), var(--red-bright))', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 12px var(--red-glow)' }}>
-              <Monitor size={18}/>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-main)', minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ width: 34, height: 34, background: 'linear-gradient(135deg, var(--red-primary), var(--red-bright))', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 12px var(--red-glow)', flexShrink: 0 }}>
+              <Monitor size={16}/>
             </div>
-            Ticket<span className="text-gradient">Desk</span>
-            {role === 'admin' && <span className="mono" style={{ fontSize: '0.65rem', color: 'var(--red-primary)', fontWeight: 600, border: '1px solid var(--red-primary)', borderRadius: 5, padding: '2px 6px', marginLeft: 4, background: 'var(--red-glow)' }}>ADMIN</span>}
+            <span className="brand-text" style={{ whiteSpace: 'nowrap' }}>
+              Ticket<span className="text-gradient">Desk</span>
+            </span>
+            {role === 'admin' && <span className="mono role-tag" style={{ fontSize: '0.65rem', color: 'var(--red-primary)', fontWeight: 600, border: '1px solid var(--red-primary)', borderRadius: 5, padding: '2px 6px', marginLeft: 4, background: 'var(--red-glow)', flexShrink: 0 }}>ADMIN</span>}
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <Link href={role === 'admin' ? '/admin/notifications' : '/employee/notifications'}
             style={{ position: 'relative', textDecoration: 'none', padding: '8px', color: 'var(--text-main)', display: 'flex', borderRadius: 8, transition: 'background 0.15s ease', background: 'var(--bg-mid)', border: '1px solid var(--border)' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--red-glow)'; e.currentTarget.style.borderColor = 'var(--red-primary)' }}
@@ -293,12 +341,12 @@ export default function AppLayout({ children, role }: LayoutProps) {
           </button>
 
           {user && (
-            <button onClick={openEdit} title="Edit Profile" style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <button onClick={openEdit} title="Edit Profile" style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}>
               <div style={{
-                width: 38, height: 38, borderRadius: '50%',
+                width: 36, height: 36, borderRadius: '50%',
                 background: 'linear-gradient(135deg, var(--red-primary), var(--red-bright))',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '0.8rem', fontWeight: 700, color: '#fff', flexShrink: 0,
+                fontSize: '0.78rem', fontWeight: 700, color: '#fff', flexShrink: 0,
                 border: '2px solid var(--border)', transition: 'transform 0.15s ease, box-shadow 0.15s ease',
               }}
                 onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 0 0 4px var(--red-glow)' }}
@@ -309,21 +357,28 @@ export default function AppLayout({ children, role }: LayoutProps) {
             </button>
           )}
 
-          <button onClick={logout} className="btn" style={{ background: 'transparent', color: 'var(--red-primary)', border: '1px solid var(--border)', padding: '8px 14px' }}
+          <button onClick={logout} className="btn logout-btn" style={{ background: 'transparent', color: 'var(--red-primary)', border: '1px solid var(--border)', padding: '8px 14px' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--red-glow)'; e.currentTarget.style.borderColor = 'var(--red-primary)' }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border)' }}>
-            Logout
+            <span className="logout-label">Logout</span>
           </button>
         </div>
       </div>
 
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px),', marginTop: 64 }}>
         {/* Sidebar */}
-        <div className="sidebar" style={{ width: 240, padding: '1.4rem 0.8rem', flexShrink: 0, position: 'fixed', top: 64, left: 0, height: 'calc(100vh - 64px)', overflowY: 'auto', zIndex: 160, transform: sideOpen ? 'translateX(0)' : 'translateX(-100%)', transition: 'transform 0.3s cubic-bezier(0.16,1,0.3,1)' }}>
+        <div className="sidebar" style={{
+          width: 240, padding: '1.4rem 0.8rem', flexShrink: 0,
+          position: 'fixed', top: 64, left: 0, height: 'calc(100vh - 64px)',
+          overflowY: 'auto', zIndex: 160,
+          transform: sideOpen ? 'translateX(0)' : 'translateX(-100%)',
+          transition: 'transform 0.3s cubic-bezier(0.16,1,0.3,1)',
+          boxShadow: isMobile && sideOpen ? '4px 0 24px rgba(0,0,0,0.25)' : 'none',
+        }}>
           {sideLinks.map(s => {
             const active = path.startsWith(s.href)
             return (
-              <Link key={s.href} href={s.href}
+              <Link key={s.href} href={s.href} onClick={handleNavClick}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '11px 1rem', margin: '3px 0',
@@ -353,7 +408,13 @@ export default function AppLayout({ children, role }: LayoutProps) {
         </div>
 
         {/* Main Content */}
-        <main style={{ flex: 1, padding: '1.6rem', overflowY: 'auto', background: 'var(--bg)', width: '100%', marginLeft: sideOpen ? 240 : 0, transition: 'margin-left 0.3s cubic-bezier(0.16,1,0.3,1)' }}>
+        <main style={{
+          flex: 1, padding: isMobile ? '1rem' : '1.6rem', overflowY: 'auto',
+          background: 'var(--bg)', width: '100%',
+          marginLeft: !isMobile && sideOpen ? 240 : 0,
+          transition: 'margin-left 0.3s cubic-bezier(0.16,1,0.3,1)',
+          minWidth: 0,
+        }}>
           {children}
         </main>
       </div>

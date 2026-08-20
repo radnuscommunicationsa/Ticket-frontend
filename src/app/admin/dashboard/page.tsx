@@ -37,16 +37,18 @@ function BigStatCard({
 
   return (
     <div
-  style={{
-    background: 'var(--bg-card)',
-    border: `1.5px solid ${color}33`,
-    borderRadius: 12,
-    padding: '1.1rem 1.1rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
+      className="stat-card-item"
+      style={{
+        background: 'var(--bg-card)',
+        border: `1.5px solid ${color}33`,
+        borderRadius: 12,
+        padding: '1rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
         position: 'relative',
         overflow: 'hidden',
+        minWidth: 0,
         boxShadow: hovered
           ? `0 8px 32px ${color}30`
           : `0 4px 24px ${color}18`,
@@ -82,52 +84,52 @@ function BigStatCard({
       />
 
       <div
-  style={{
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    background: `${color}18`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  }}
->
-  <Icon size={20} color={color} strokeWidth={1.8} />
-</div>
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 10,
+          background: `${color}18`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon size={20} color={color} strokeWidth={1.8} />
+      </div>
 
       <div
-  style={{
-    fontSize: '1.6rem',
-    fontWeight: 800,
-    color,
-    lineHeight: 1,
-    fontVariantNumeric: 'tabular-nums',
-  }}
->
-  {value ?? 0}
-</div>
+        style={{
+          fontSize: '1.6rem',
+          fontWeight: 800,
+          color,
+          lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {value ?? 0}
+      </div>
 
       <div
-  style={{
-    fontSize: '0.72rem',
-    fontWeight: 700,
-    color: 'var(--text-main)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-  }}
->
-  {label}
-</div>
+        style={{
+          fontSize: '0.72rem',
+          fontWeight: 700,
+          color: 'var(--text-main)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+        }}
+      >
+        {label}
+      </div>
 
-<div
-  style={{
-    fontSize: '0.66rem',
-    color: 'var(--text-muted)',
-    marginTop: 1,
-  }}
->
-  {sub}
-</div>
+      <div
+        style={{
+          fontSize: '0.66rem',
+          color: 'var(--text-muted)',
+          marginTop: 1,
+        }}
+      >
+        {sub}
+      </div>
     </div>
   )
 }
@@ -252,13 +254,11 @@ export default function AdminDashboard() {
         <>
           {/* STAT CARDS — purple family palette, each card a distinct shade */}
           <div
-  style={{
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '0.9rem',
-    marginBottom: '1.4rem',
-  }}
->
+            className="stats-grid"
+            style={{
+              marginBottom: '1.4rem',
+            }}
+          >
             <BigStatCard
               icon={Ticket}
               label="Total Tickets"
@@ -356,7 +356,8 @@ export default function AdminDashboard() {
               </Link>
             </div>
 
-            <div style={{ overflowX: 'auto' }}>
+            {/* DESKTOP: full table */}
+            <div className="desktop-table-wrap" style={{ overflowX: 'auto' }}>
               <table
                 style={{
                   width: '100%',
@@ -457,6 +458,47 @@ export default function AdminDashboard() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* MOBILE: stacked card list */}
+            <div className="mobile-ticket-list" style={{ display: 'none', flexDirection: 'column', padding: '0.6rem' }}>
+              {recentTickets.length === 0 ? (
+                <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  No tickets found
+                </div>
+              ) : (
+                recentTickets.map((t: any) => (
+                  <div
+                    key={t._id}
+                    style={{
+                      border: '1px solid var(--border-mid)',
+                      borderRadius: 10,
+                      padding: '0.8rem 0.9rem',
+                      marginBottom: '0.6rem',
+                      background: 'var(--bg-mid)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontFamily: 'IBM Plex Mono', color: 'var(--red-primary)', fontWeight: 700, fontSize: '0.8rem' }}>
+                        {t.ticket_no}
+                      </span>
+                      <Badge text={STATUS_LABEL[t.status] ?? t.status} color={STATUS_COLOR[t.status] ?? '#64748B'} />
+                    </div>
+                    <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
+                      {t.subject}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                      <span>{t.emp_name || 'Unknown'}</span>
+                      <span>·</span>
+                      <span>{t.department || 'N/A'}</span>
+                      <Badge text={t.priority} color={PRIORITY_COLOR[t.priority] ?? '#64748B'} />
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6 }}>
+                      {t.created_at ? new Date(t.created_at).toLocaleString() : '-'}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             <div

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import type { CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader } from '@/components/ui'
@@ -33,7 +34,7 @@ import {
    INPUT STYLES
 ========================================================= */
 
-const inp: React.CSSProperties = {
+const inp: CSSProperties = {
   width: '100%',
   padding: '9px 12px',
   borderRadius: 6,
@@ -46,7 +47,7 @@ const inp: React.CSSProperties = {
   boxSizing: 'border-box',
 }
 
-const inpFocus: React.CSSProperties = {
+const inpFocus: CSSProperties = {
   borderColor: 'var(--red-primary)',
   boxShadow: '0 0 0 3px var(--red-glow)',
 }
@@ -200,6 +201,8 @@ export default function RaiseTicket() {
   const [user, setUser] = useState<any>(null)
   const [ready, setReady] = useState(false)
 
+  const isAdminUser = user?.role === 'admin' || (user?.role as string) === 'system_admin'
+
   /* FORM */
   const [form, setForm] = useState({
     category: '',
@@ -208,6 +211,8 @@ export default function RaiseTicket() {
     description: '',
     asset: '',
     contact_pref: 'Email',
+    employee_id: '',
+    source: 'web',
   })
 
   /* UI */
@@ -217,10 +222,15 @@ export default function RaiseTicket() {
   /* FILE */
   const [file, setFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null) // NEW
 
   /* ASSETS */
   const [myAssets, setMyAssets] = useState<any[]>([])
   const [assetSearch, setAssetSearch] = useState('')
+
+  /* EMPLOYEES (admin only) */
+  const [allEmployees, setAllEmployees] = useState<any[]>([])
+  const [empSearch, setEmpSearch] = useState('')
 
   /* MESSAGES */
   const [errorMsg, setErrorMsg] = useState('')
@@ -236,7 +246,7 @@ export default function RaiseTicket() {
   const subjectRef = useRef<HTMLInputElement>(null)
 
   /* =========================================================
-     LOAD USER + ASSETS
+     LOAD USER + ASSETS + (ADMIN) EMPLOYEES
   ========================================================= */
 
   useEffect(() => {
@@ -253,6 +263,17 @@ export default function RaiseTicket() {
       .catch(() => {
         setMyAssets([])
       })
+
+    if (u?.role === 'admin' || (u?.role as string) === 'system_admin') {
+      api
+        .get('/employees')
+        .then((res) => {
+          setAllEmployees(res.data?.employees || [])
+        })
+        .catch(() => {
+          setAllEmployees([])
+        })
+    }
   }, [])
 
   /* =========================================================
@@ -267,9 +288,7 @@ export default function RaiseTicket() {
 
     if (file.type.startsWith('image/')) {
       const url = URL.createObjectURL(file)
-
       setFilePreview(url)
-
       return () => {
         URL.revokeObjectURL(url)
       }
@@ -279,6 +298,21 @@ export default function RaiseTicket() {
   }, [file])
 
   /* =========================================================
+     SUCCESS MODAL — LOCK BODY SCROLL
+  ========================================================= */
+
+  useEffect(() => {
+    if (successTicketNo) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [successTicketNo])
+
+  /* =========================================================
      VALIDATION VALUES
   ========================================================= */
 
@@ -286,6 +320,7 @@ export default function RaiseTicket() {
   const descFilled = form.description.trim().length > 0
   const catSelected = !!form.category
   const priSelected = !!form.priority
+  const empSelected = !isAdminUser || !!form.employee_id
 
   /* =========================================================
      UPDATE FORM
@@ -297,8 +332,6 @@ export default function RaiseTicket() {
         ...prev,
         ...patch,
       }))
-
-      // Clear general error when user changes form
       setErrorMsg('')
     },
     []
@@ -314,7 +347,7 @@ export default function RaiseTicket() {
     setForm((prev) => ({
       ...prev,
       category: catValue,
-      subject: cat?.subjectHint || prev.subject,
+      subject: prev.subject || cat?.subjectHint || '', // FIX: don't wipe existing text
     }))
 
     setTouched((prev) => ({
@@ -369,89 +402,62 @@ export default function RaiseTicket() {
   }
 
   /* =========================================================
+     FILTERED EMPLOYEES
+  ========================================================= */
+
+  const filteredEmployees = allEmployees.filter((e: any) =>
+    `${e.name || ''} ${e.emp_id || ''}`
+      .toLowerCase()
+      .includes(empSearch.toLowerCase())
+  )
+
+  /* =========================================================
      SUBMIT TICKET
   ========================================================= */
 
   const handleSubmit = async () => {
-    // Prevent double submit
     if (loading) return
-
-    console.log('SUBMIT FORM:', form)
 
     setLoading(true)
     setErrorMsg('')
 
-    /* -------------------------
-       CATEGORY
-    ------------------------- */
+    if (isAdminUser && !form.employee_id) {
+      setErrorMsg('Please select which employee this ticket is for.')
+      setTouched((prev) => ({ ...prev, employee_id: true }))
+      setLoading(false)
+      return
+    }
 
     if (!form.category) {
       setErrorMsg('Please select an issue category.')
-
-      setTouched((prev) => ({
-        ...prev,
-        category: true,
-      }))
-
+      setTouched((prev) => ({ ...prev, category: true }))
       setLoading(false)
       return
     }
-
-    /* -------------------------
-       PRIORITY
-    ------------------------- */
 
     if (!form.priority) {
       setErrorMsg('Please select a priority.')
-
-      setTouched((prev) => ({
-        ...prev,
-        priority: true,
-      }))
-
+      setTouched((prev) => ({ ...prev, priority: true }))
       setLoading(false)
       return
     }
-
-    /* -------------------------
-       SUBJECT
-    ------------------------- */
 
     if (form.subject.trim().length < 5) {
       setErrorMsg('Subject must be at least 5 characters.')
-
-      setTouched((prev) => ({
-        ...prev,
-        subject: true,
-      }))
-
+      setTouched((prev) => ({ ...prev, subject: true }))
       setLoading(false)
       return
     }
-
-    /* -------------------------
-       DESCRIPTION
-    ------------------------- */
 
     if (!form.description.trim()) {
       setErrorMsg('Please enter a description.')
-
-      setTouched((prev) => ({
-        ...prev,
-        description: true,
-      }))
-
+      setTouched((prev) => ({ ...prev, description: true }))
       setLoading(false)
       return
     }
 
-    /* -------------------------
-       FILE
-    ------------------------- */
-
     if (file && file.size > 5 * 1024 * 1024) {
       setErrorMsg('File size must be less than 5MB.')
-
       setLoading(false)
       return
     }
@@ -460,13 +466,9 @@ export default function RaiseTicket() {
       let payload: any
       let config: any = {}
 
-      /* =====================================================
-         WITH ATTACHMENT
-      ===================================================== */
-
+      /* WITH ATTACHMENT */
       if (file) {
         payload = new FormData()
-
         payload.append('category', form.category)
         payload.append('priority', form.priority)
         payload.append('subject', form.subject.trim())
@@ -477,17 +479,19 @@ export default function RaiseTicket() {
         }
 
         payload.append('contact_pref', form.contact_pref)
+        payload.append('source', form.source)
+
+        if (form.employee_id) {
+          payload.append('employee_id', form.employee_id)
+        }
+
         payload.append('attachment', file)
 
-        config.headers = {
-          'Content-Type': 'multipart/form-data',
-        }
+        // FIX: Don't set Content-Type manually — axios handles multipart boundary
+        // config.headers removed
       }
 
-      /* =====================================================
-         WITHOUT ATTACHMENT
-      ===================================================== */
-
+      /* WITHOUT ATTACHMENT */
       else {
         payload = {
           category: form.category,
@@ -496,27 +500,14 @@ export default function RaiseTicket() {
           description: form.description.trim(),
           asset: form.asset,
           contact_pref: form.contact_pref,
+          source: form.source,
+          employee_id: form.employee_id || undefined,
         }
       }
 
-      console.log('SENDING TICKET:', payload)
+      const { data } = await api.post('/tickets', payload, config)
 
-      /* =====================================================
-         API CALL
-      ===================================================== */
-
-      const { data } = await api.post(
-        '/tickets',
-        payload,
-        config
-      )
-
-      console.log('TICKET RESPONSE:', data)
-
-      /* =====================================================
-         RESET FORM
-      ===================================================== */
-
+      /* RESET */
       setForm({
         category: '',
         priority: '',
@@ -524,16 +515,15 @@ export default function RaiseTicket() {
         description: '',
         asset: '',
         contact_pref: 'Email',
+        employee_id: '',
+        source: 'web',
       })
 
       setFile(null)
       setAssetSearch('')
+      setEmpSearch('')
       setTouched({})
       setErrorMsg('')
-
-      /* =====================================================
-         SUCCESS
-      ===================================================== */
 
       setSuccessTicketNo(
         data?.ticket_no ||
@@ -542,7 +532,6 @@ export default function RaiseTicket() {
       )
     } catch (err: any) {
       console.error('TICKET CREATE ERROR:', err)
-
       setErrorMsg(
         err?.response?.data?.error ||
         err?.response?.data?.message ||
@@ -561,21 +550,9 @@ export default function RaiseTicket() {
     return null
   }
 
-  /* =========================================================
-     SELECTED VALUES
-  ========================================================= */
-
-  const selectedCat = CATEGORIES.find(
-    (c) => c.value === form.category
+  const selectedEmployee = allEmployees.find(
+    (e: any) => (e._id || e.id) === form.employee_id
   )
-
-  const selectedPri = PRIORITIES.find(
-    (p) => p.value === form.priority
-  )
-
-  /* =========================================================
-     FILTER ASSETS
-  ========================================================= */
 
   const filteredAssets = myAssets.filter((a: any) =>
     `${a.asset_code || ''} ${a.name || ''}`
@@ -588,18 +565,16 @@ export default function RaiseTicket() {
   ========================================================= */
 
   return (
-    <AppLayout
-      role={user?.role === 'admin' ? 'admin' : 'employee'}
-    >
+    <AppLayout role={isAdminUser ? 'admin' : 'employee'}>
       <PageHeader
         breadcrumb="RAISE TICKET"
-        title="Raise IT Support Ticket"
-        subtitle="Submit a new request — our team responds within 4 business hours"
+        title={isAdminUser ? 'Raise Ticket on Behalf of Employee' : 'Raise IT Support Ticket'}
+        subtitle={
+          isAdminUser
+            ? 'Log a ticket reported by phone, walk-in, or email'
+            : 'Submit a new request — our team responds within 4 business hours'
+        }
       />
-
-      {/* =====================================================
-          PAGE CONTAINER
-      ===================================================== */}
 
       <div
         style={{
@@ -610,11 +585,7 @@ export default function RaiseTicket() {
           boxSizing: 'border-box',
         }}
       >
-
-        {/* ===================================================
-            USER DETAILS
-        =================================================== */}
-
+        {/* USER DETAILS */}
         <div
           className="card"
           style={{
@@ -629,31 +600,12 @@ export default function RaiseTicket() {
           {[
             ['Name', user?.name || '—'],
             ['Employee ID', user?.emp_id || '—'],
-            [
-              'Department',
-              user?.department ||
-              user?.dept ||
-              '—',
-            ],
+            ['Department', user?.department || user?.dept || '—'],
           ].map(([label, value], index) => (
-            <div
-              key={label}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-              }}
-            >
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {index > 0 && (
-                <div
-                  style={{
-                    width: 1,
-                    height: 26,
-                    background: 'var(--border)',
-                  }}
-                />
+                <div style={{ width: 1, height: 26, background: 'var(--border)' }} />
               )}
-
               <div>
                 <div
                   style={{
@@ -665,14 +617,7 @@ export default function RaiseTicket() {
                 >
                   {label}
                 </div>
-
-                <div
-                  style={{
-                    fontSize: '0.83rem',
-                    color: 'var(--text-main)',
-                    fontWeight: 600,
-                  }}
-                >
+                <div style={{ fontSize: '0.83rem', color: 'var(--text-main)', fontWeight: 600 }}>
                   {value}
                 </div>
               </div>
@@ -680,10 +625,7 @@ export default function RaiseTicket() {
           ))}
         </div>
 
-        {/* ===================================================
-            ERROR
-        =================================================== */}
-
+        {/* ERROR */}
         {errorMsg && (
           <div
             style={{
@@ -693,8 +635,7 @@ export default function RaiseTicket() {
               padding: '10px 14px',
               borderRadius: 6,
               background: 'rgba(198,40,40,0.08)',
-              border:
-                '1px solid rgba(198,40,40,0.25)',
+              border: '1px solid rgba(198,40,40,0.25)',
               color: '#c62828',
               fontSize: '0.82rem',
               marginBottom: '0.9rem',
@@ -705,10 +646,7 @@ export default function RaiseTicket() {
           </div>
         )}
 
-        {/* ===================================================
-            CRITICAL WARNING
-        =================================================== */}
-
+        {/* CRITICAL WARNING */}
         {form.priority === 'critical' && (
           <div
             style={{
@@ -718,106 +656,133 @@ export default function RaiseTicket() {
               padding: '10px 14px',
               borderRadius: 6,
               background: 'rgba(198,40,40,0.08)',
-              border:
-                '1px solid rgba(198,40,40,0.25)',
+              border: '1px solid rgba(198,40,40,0.25)',
               color: '#c62828',
               fontSize: '0.82rem',
               marginBottom: '0.9rem',
             }}
           >
             <AlertOctagon size={15} />
-
             <span>
-              <strong>Critical Priority:</strong>{' '}
-              This will immediately alert the on-call
+              <strong>Critical Priority:</strong> This will immediately alert the on-call
               engineer and page the IT manager.
             </span>
           </div>
         )}
 
-        {/* ===================================================
-            TICKET CARD
-        =================================================== */}
-
+        {/* TICKET CARD */}
         <div className="card">
-
-          {/* HEADER */}
-
           <div
             style={{
               padding: '0.9rem 1.2rem',
-              borderBottom:
-                '1px solid var(--border)',
+              borderBottom: '1px solid var(--border)',
               background: 'var(--bg-mid)',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
             }}
           >
-            <Ticket
-              size={16}
-              color="var(--red-primary)"
-              strokeWidth={2}
-            />
-
-            <span
-              style={{
-                fontSize: '0.85rem',
-                fontWeight: 600,
-              }}
-            >
-              New Ticket
-            </span>
+            <Ticket size={16} color="var(--red-primary)" strokeWidth={2} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>New Ticket</span>
           </div>
 
-          {/* FORM BODY */}
+          <div style={{ padding: '1.4rem', display: 'grid', gridTemplateColumns: '1fr', gap: '1.2rem' }}>
+            {/* ADMIN: RAISE FOR + SOURCE */}
+            {isAdminUser && (
+              <>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                    gap: '1rem',
+                  }}
+                >
+                  <FG
+                    label="Raise Ticket For *"
+                    error={
+                      touched.employee_id && !empSelected
+                        ? 'Please select an employee'
+                        : undefined
+                    }
+                  >
+                    <input
+                      type="text"
+                      placeholder="Search employee by name or ID..."
+                      value={empSearch}
+                      onChange={(e) => setEmpSearch(e.target.value)}
+                      style={{ ...inp, marginBottom: 6 }}
+                    />
+                    <select
+                      required
+                      value={form.employee_id}
+                      onChange={(e) => updateForm({ employee_id: e.target.value })}
+                      onBlur={() =>
+                        setTouched((prev) => ({ ...prev, employee_id: true }))
+                      }
+                      style={inp}
+                    >
+                      <option value="">— Select Employee —</option>
+                      {filteredEmployees.map((e: any) => (
+                        <option key={e._id || e.id} value={e._id || e.id}>
+                          {e.name} — {e.emp_id} ({e.department || 'N/A'})
+                        </option>
+                      ))}
+                    </select>
+                    {selectedEmployee && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          color: 'var(--text-muted)',
+                          marginTop: 2,
+                        }}
+                      >
+                        Ticket will be created under {selectedEmployee.name}'s account.
+                      </span>
+                    )}
+                  </FG>
 
-          <div
-            style={{
-              padding: '1.4rem',
-              display: 'grid',
-              gridTemplateColumns: '1fr',
-              gap: '1.2rem',
-            }}
-          >
+                  <FG label="Reported Via">
+                    <select
+                      value={form.source}
+                      onChange={(e) => updateForm({ source: e.target.value })}
+                      style={inp}
+                    >
+                      <option value="phone">📞 Phone Call</option>
+                      <option value="walk-in">🚶 Walk-in</option>
+                      <option value="email">✉️ Email</option>
+                      <option value="web">🌐 Web Portal</option>
+                    </select>
+                  </FG>
+                </div>
 
-            {/* =================================================
-                CATEGORY
-            ================================================= */}
+                <div style={{ height: 1, background: 'var(--border)' }} />
+              </>
+            )}
 
+            {/* CATEGORY */}
             <FG
               label="Issue Category *"
               error={
-                touched.category &&
-                !catSelected
-                  ? 'Please select a category'
-                  : undefined
+                touched.category && !catSelected ? 'Please select a category' : undefined
               }
             >
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(auto-fit, minmax(150px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                   gap: '0.7rem',
                   marginTop: 4,
                 }}
               >
                 {CATEGORIES.map((category) => {
                   const Icon = category.icon
-
-                  const active =
-                    form.category === category.value
+                  const active = form.category === category.value
 
                   return (
                     <button
                       type="button"
                       key={category.value}
-                      onClick={() =>
-                        handleCategorySelect(
-                          category.value
-                        )
-                      }
+                      onClick={() => handleCategorySelect(category.value)}
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
@@ -830,33 +795,21 @@ export default function RaiseTicket() {
                         border: active
                           ? '2px solid var(--red-primary)'
                           : '1px solid var(--border)',
-                        background: active
-                          ? 'var(--red-glow)'
-                          : 'var(--bg-input)',
-                        transition:
-                          'all 0.15s',
-                        transform: active
-                          ? 'scale(1.02)'
-                          : 'scale(1)',
+                        background: active ? 'var(--red-glow)' : 'var(--bg-input)',
+                        transition: 'all 0.15s',
+                        transform: active ? 'scale(1.02)' : 'scale(1)',
                       }}
                     >
                       <Icon
                         size={22}
-                        color={
-                          active
-                            ? 'var(--red-primary)'
-                            : 'var(--text-muted)'
-                        }
+                        color={active ? 'var(--red-primary)' : 'var(--text-muted)'}
                         strokeWidth={1.8}
                       />
-
                       <span
                         style={{
                           fontSize: '0.72rem',
                           fontWeight: 600,
-                          color: active
-                            ? 'var(--red-primary)'
-                            : 'var(--text-sub)',
+                          color: active ? 'var(--red-primary)' : 'var(--text-sub)',
                           lineHeight: 1.3,
                         }}
                       >
@@ -868,44 +821,30 @@ export default function RaiseTicket() {
               </div>
             </FG>
 
-            {/* =================================================
-                PRIORITY
-            ================================================= */}
-
+            {/* PRIORITY */}
             <FG
               label="Priority *"
               error={
-                touched.priority &&
-                !priSelected
-                  ? 'Please select a priority'
-                  : undefined
+                touched.priority && !priSelected ? 'Please select a priority' : undefined
               }
             >
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(auto-fit, minmax(130px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
                   gap: '0.7rem',
                   marginTop: 4,
                 }}
               >
                 {PRIORITIES.map((priority) => {
                   const Icon = priority.icon
-
-                  const active =
-                    form.priority ===
-                    priority.value
+                  const active = form.priority === priority.value
 
                   return (
                     <button
                       type="button"
                       key={priority.value}
-                      onClick={() =>
-                        handlePrioritySelect(
-                          priority.value
-                        )
-                      }
+                      onClick={() => handlePrioritySelect(priority.value)}
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
@@ -915,22 +854,14 @@ export default function RaiseTicket() {
                         borderRadius: 8,
                         cursor: 'pointer',
                         textAlign: 'center',
-
                         border: active
                           ? `2px solid ${priority.color}`
                           : '1px solid var(--border)',
-
                         background: active
                           ? `${priority.color}15`
                           : 'var(--bg-input)',
-
-                        transition:
-                          'all 0.15s',
-
-                        transform: active
-                          ? 'scale(1.02)'
-                          : 'scale(1)',
-
+                        transition: 'all 0.15s',
+                        transform: active ? 'scale(1.02)' : 'scale(1)',
                         borderLeft: active
                           ? `4px solid ${priority.color}`
                           : '1px solid var(--border)',
@@ -938,38 +869,20 @@ export default function RaiseTicket() {
                     >
                       <Icon
                         size={20}
-                        color={
-                          active
-                            ? priority.color
-                            : 'var(--text-muted)'
-                        }
-                        fill={
-                          active &&
-                          priority.value !== 'low'
-                            ? priority.color
-                            : 'none'
-                        }
+                        color={active ? priority.color : 'var(--text-muted)'}
+                        fill={active && priority.value !== 'low' ? priority.color : 'none'}
                         strokeWidth={1.8}
                       />
-
                       <span
                         style={{
                           fontSize: '0.75rem',
                           fontWeight: 700,
-                          color: active
-                            ? priority.color
-                            : 'var(--text-sub)',
+                          color: active ? priority.color : 'var(--text-sub)',
                         }}
                       >
                         {priority.label}
                       </span>
-
-                      <span
-                        style={{
-                          fontSize: '0.62rem',
-                          color: 'var(--text-muted)',
-                        }}
-                      >
+                      <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
                         {priority.desc}
                       </span>
                     </button>
@@ -978,24 +891,13 @@ export default function RaiseTicket() {
               </div>
             </FG>
 
-            {/* DIVIDER */}
+            <div style={{ height: 1, background: 'var(--border)' }} />
 
-            <div
-              style={{
-                height: 1,
-                background: 'var(--border)',
-              }}
-            />
-
-            {/* =================================================
-                SUBJECT
-            ================================================= */}
-
+            {/* SUBJECT */}
             <FG
               label="Subject / Title *"
               error={
-                touched.subject &&
-                !subjectValid
+                touched.subject && !subjectValid
                   ? 'Minimum 5 characters required'
                   : undefined
               }
@@ -1004,34 +906,24 @@ export default function RaiseTicket() {
                 ref={subjectRef}
                 required
                 value={form.subject}
-                onChange={(e) =>
-                  updateForm({
-                    subject: e.target.value,
-                  })
-                }
-                onBlur={() =>
-                  setTouched((prev) => ({
-                    ...prev,
-                    subject: true,
-                  }))
-                }
-                onFocus={() =>
-                  setFocusedField('subject')
-                }
+                onChange={(e) => updateForm({ subject: e.target.value })}
+                onBlur={() => setTouched((prev) => ({ ...prev, subject: true }))}
+                onFocus={() => setFocusedField('subject')}
                 placeholder="Brief description of the issue"
                 style={{
                   ...inp,
-                  ...(focusedField === 'subject'
-                    ? inpFocus
-                    : {}),
-                  borderColor: touched.subject
-                    ? subjectValid
-                      ? '#2e7d32'
-                      : '#c62828'
-                    : 'var(--border)',
+                  borderColor:
+                    focusedField === 'subject'
+                      ? 'var(--red-primary)'
+                      : touched.subject
+                        ? subjectValid
+                          ? '#2e7d32'
+                          : '#c62828'
+                        : 'var(--border)',
+                  boxShadow:
+                    focusedField === 'subject' ? '0 0 0 3px var(--red-glow)' : 'none',
                 }}
               />
-
               <div
                 style={{
                   display: 'flex',
@@ -1059,68 +951,42 @@ export default function RaiseTicket() {
                       'Too short'
                     ))}
                 </span>
-
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    color: 'var(--text-muted)',
-                  }}
-                >
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                   {form.subject.length} chars
                 </span>
               </div>
             </FG>
 
-            {/* =================================================
-                DESCRIPTION
-            ================================================= */}
-
+            {/* DESCRIPTION */}
             <FG
               label="Detailed Description *"
               error={
-                touched.description &&
-                !descFilled
-                  ? 'Description is required'
-                  : undefined
+                touched.description && !descFilled ? 'Description is required' : undefined
               }
             >
               <textarea
                 required
                 value={form.description}
-                onChange={(e) =>
-                  updateForm({
-                    description:
-                      e.target.value,
-                  })
-                }
-                onBlur={() =>
-                  setTouched((prev) => ({
-                    ...prev,
-                    description: true,
-                  }))
-                }
-                onFocus={() =>
-                  setFocusedField(
-                    'description'
-                  )
-                }
+                onChange={(e) => updateForm({ description: e.target.value })}
+                onBlur={() => setTouched((prev) => ({ ...prev, description: true }))}
+                onFocus={() => setFocusedField('description')}
                 placeholder="Describe in detail: what happened, when it started, any error messages..."
                 style={{
                   ...inp,
                   minHeight: 130,
                   resize: 'vertical',
-                  ...(focusedField ===
-                  'description'
-                    ? inpFocus
-                    : {}),
                   borderColor:
-                    touched.description &&
-                    !descFilled
-                      ? '#c62828'
-                      : 'var(--border)',
+                    focusedField === 'description'
+                      ? 'var(--red-primary)'
+                      : touched.description && !descFilled
+                        ? '#c62828'
+                        : 'var(--border)',
+                  boxShadow:
+                    focusedField === 'description'
+                      ? '0 0 0 3px var(--red-glow)'
+                      : 'none',
                 }}
               />
-
               <div
                 style={{
                   display: 'flex',
@@ -1133,214 +999,116 @@ export default function RaiseTicket() {
                   style={{
                     fontSize: '0.68rem',
                     color:
-                      touched.description &&
-                      !descFilled
-                        ? '#c62828'
-                        : 'var(--text-muted)',
+                      touched.description && !descFilled ? '#c62828' : 'var(--text-muted)',
                   }}
                 >
-                  {touched.description &&
-                  !descFilled
-                    ? 'Please add a description'
-                    : ''}
+                  {touched.description && !descFilled ? 'Please add a description' : ''}
                 </span>
-
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  {form.description.length}{' '}
-                  chars
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                  {form.description.length} chars
                 </span>
               </div>
             </FG>
 
-            {/* =================================================
-                ASSET + CONTACT
-            ================================================= */}
-
+            {/* ASSET + CONTACT */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns:
-                  'repeat(auto-fit, minmax(260px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
                 gap: '1rem',
               }}
             >
-              {/* ASSET */}
-
               <FG label="Asset / Device (optional)">
-                <div
-                  style={{
-                    position: 'relative',
-                  }}
-                >
+                <div style={{ position: 'relative' }}>
                   <input
                     type="text"
                     placeholder="Search assets..."
                     value={assetSearch}
-                    onChange={(e) =>
-                      setAssetSearch(
-                        e.target.value
-                      )
-                    }
-                    style={{
-                      ...inp,
-                      marginBottom: 6,
-                    }}
+                    onChange={(e) => setAssetSearch(e.target.value)}
+                    style={{ ...inp, marginBottom: 6 }}
                   />
-
                   <select
                     value={form.asset}
-                    onChange={(e) =>
-                      updateForm({
-                        asset: e.target.value,
-                      })
-                    }
+                    onChange={(e) => updateForm({ asset: e.target.value })}
                     style={inp}
                   >
-                    <option value="">
-                      — No Asset / General Issue —
-                    </option>
-
-                    {filteredAssets.map(
-                      (asset: any) => (
-                        <option
-                          key={
-                            asset._id ||
-                            asset.id
-                          }
-                          value={
-                            asset.asset_code
-                          }
-                        >
-                          {asset.asset_code} —{' '}
-                          {asset.name}
-                        </option>
-                      )
-                    )}
+                    <option value="">— No Asset / General Issue —</option>
+                    {filteredAssets.map((asset: any) => (
+                      <option key={asset._id || asset.id} value={asset.asset_code}>
+                        {asset.asset_code} — {asset.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </FG>
 
-              {/* CONTACT */}
-
               <FG label="Preferred Contact">
                 <select
                   value={form.contact_pref}
-                  onChange={(e) =>
-                    updateForm({
-                      contact_pref:
-                        e.target.value,
-                    })
-                  }
+                  onChange={(e) => updateForm({ contact_pref: e.target.value })}
                   style={inp}
                 >
-                  <option value="Email">
-                    Email
-                  </option>
-
-                  <option value="Phone">
-                    Phone
-                  </option>
-
-                  <option value="In-Person">
-                    In-Person
-                  </option>
+                  <option value="Email">Email</option>
+                  <option value="Phone">Phone</option>
+                  <option value="In-Person">In-Person</option>
                 </select>
               </FG>
             </div>
 
-            {/* =================================================
-                ATTACHMENT
-            ================================================= */}
-
+            {/* ATTACHMENT — FIXED DRAG & DROP */}
             <FG label="Attachment (optional) — max 5MB">
               <div
+                onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => {
                   e.preventDefault()
+                  e.stopPropagation()
                   setDrag(true)
                 }}
-                onDragLeave={() =>
+                onDragLeave={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
                   setDrag(false)
-                }
+                }}
                 onDrop={(e) => {
                   e.preventDefault()
+                  e.stopPropagation()
                   setDrag(false)
-
-                  const droppedFile =
-                    e.dataTransfer.files[0]
-
-                  if (droppedFile) {
-                    handleFileSelect(
-                      droppedFile
-                    )
-                  }
+                  const droppedFile = e.dataTransfer.files[0]
+                  if (droppedFile) handleFileSelect(droppedFile)
                 }}
                 style={{
-                  border: `1.5px dashed ${
-                    drag
-                      ? 'var(--red-primary)'
-                      : 'var(--border)'
-                  }`,
+                  border: `1.5px dashed ${drag ? 'var(--red-primary)' : 'var(--border)'}`,
                   borderRadius: 8,
                   padding: '1rem',
                   textAlign: 'center',
                   cursor: 'pointer',
-                  background: drag
-                    ? 'var(--red-glow)'
-                    : 'var(--bg-input)',
+                  background: drag ? 'var(--red-glow)' : 'var(--bg-input)',
                   position: 'relative',
                   transition: 'all 0.2s',
                 }}
               >
+                {/* FIX: Hidden input with ref, pointerEvents none on overlay */}
                 <input
+                  ref={fileInputRef}
                   type="file"
                   onChange={(e) =>
-                    handleFileSelect(
-                      e.target.files?.[0] ||
-                      null
-                    )
+                    handleFileSelect(e.target.files?.[0] || null)
                   }
                   accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.xlsx,.zip"
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    opacity: 0,
-                    cursor: 'pointer',
-                  }}
+                  style={{ display: 'none' }}
                 />
 
                 <Paperclip
                   size={22}
                   color="var(--text-muted)"
                   strokeWidth={1.6}
-                  style={{
-                    marginBottom: 4,
-                  }}
+                  style={{ marginBottom: 4 }}
                 />
-
-                <div
-                  style={{
-                    fontSize: '0.8rem',
-                    color: 'var(--text-sub)',
-                  }}
-                >
-                  Click to upload or drag &
-                  drop
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-sub)' }}>
+                  Click to upload or drag & drop
                 </div>
-
-                <div
-                  style={{
-                    fontSize: '0.68rem',
-                    color: 'var(--text-muted)',
-                    marginTop: 2,
-                  }}
-                >
-                  JPG, PNG, PDF, DOC, XLSX,
-                  ZIP
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  JPG, PNG, PDF, DOC, XLSX, ZIP
                 </div>
               </div>
 
@@ -1349,14 +1117,11 @@ export default function RaiseTicket() {
                   style={{
                     marginTop: 8,
                     padding: '7px 10px',
-                    background:
-                      'var(--bg-mid)',
+                    background: 'var(--bg-mid)',
                     borderRadius: 6,
-                    border:
-                      '1px solid var(--border)',
+                    border: '1px solid var(--border)',
                     fontSize: '0.78rem',
-                    color:
-                      'var(--text-main)',
+                    color: 'var(--text-main)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
@@ -1366,53 +1131,27 @@ export default function RaiseTicket() {
                     <img
                       src={filePreview}
                       alt="preview"
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 4,
-                        objectFit: 'cover',
-                      }}
+                      style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover' }}
                     />
                   ) : (
-                    <FileText
-                      size={15}
-                      color="var(--red-primary)"
-                    />
+                    <FileText size={15} color="var(--red-primary)" />
                   )}
-
                   <span
                     style={{
                       flex: 1,
                       overflow: 'hidden',
-                      textOverflow:
-                        'ellipsis',
-                      whiteSpace:
-                        'nowrap',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {file.name}
                   </span>
-
-                  <span
-                    style={{
-                      color:
-                        'var(--text-muted)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {(
-                      file.size /
-                      1024 /
-                      1024
-                    ).toFixed(2)}{' '}
-                    MB
+                  <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
                   </span>
-
                   <button
                     type="button"
-                    onClick={() =>
-                      setFile(null)
-                    }
+                    onClick={() => setFile(null)}
                     style={{
                       background: 'none',
                       border: 'none',
@@ -1428,28 +1167,20 @@ export default function RaiseTicket() {
               )}
             </FG>
 
-            {/* =================================================
-                BUTTONS
-            ================================================= */}
-
+            {/* BUTTONS */}
             <div
               style={{
                 display: 'flex',
                 gap: 8,
-                justifyContent:
-                  'space-between',
+                justifyContent: 'space-between',
                 marginTop: '0.4rem',
               }}
             >
-              {/* CANCEL */}
-
               <button
                 type="button"
                 onClick={() =>
                   router.push(
-                    user?.role === 'admin'
-                      ? '/admin/dashboard'
-                      : '/employee/dashboard'
+                    isAdminUser ? '/admin/dashboard' : '/employee/dashboard'
                   )
                 }
                 style={{
@@ -1458,11 +1189,9 @@ export default function RaiseTicket() {
                   gap: 6,
                   padding: '8px 16px',
                   borderRadius: 6,
-                  border:
-                    '1px solid var(--border)',
+                  border: '1px solid var(--border)',
                   background: 'transparent',
-                  color:
-                    'var(--text-muted)',
+                  color: 'var(--text-muted)',
                   cursor: 'pointer',
                   fontSize: '0.8rem',
                   fontWeight: 600,
@@ -1471,8 +1200,6 @@ export default function RaiseTicket() {
                 <ArrowLeft size={14} />
                 Cancel
               </button>
-
-              {/* SUBMIT */}
 
               <button
                 type="button"
@@ -1485,158 +1212,98 @@ export default function RaiseTicket() {
                   padding: '8px 22px',
                   borderRadius: 6,
                   border: 'none',
-                  background:
-                    'var(--red-primary)',
+                  background: 'var(--red-primary)',
                   color: '#fff',
-                  cursor: loading
-                    ? 'not-allowed'
-                    : 'pointer',
+                  cursor: loading ? 'not-allowed' : 'pointer',
                   fontSize: '0.8rem',
                   fontWeight: 600,
-                  opacity: loading
-                    ? 0.7
-                    : 1,
+                  opacity: loading ? 0.7 : 1,
                 }}
               >
                 <Ticket size={14} />
-
-                {loading
-                  ? 'Submitting...'
-                  : 'Submit Ticket'}
+                {loading ? 'Submitting...' : 'Submit Ticket'}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* =====================================================
-          SUCCESS MODAL
-      ===================================================== */}
-
+      {/* SUCCESS MODAL */}
       {successTicketNo && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background:
-              'rgba(0,0,0,0.5)',
+            background: 'rgba(0,0,0,0.5)',
             zIndex: 999,
             display: 'flex',
             alignItems: 'center',
-            justifyContent:
-              'center',
+            justifyContent: 'center',
             padding: '1rem',
           }}
         >
           <div
             style={{
-              background:
-                'var(--bg-card)',
+              background: 'var(--bg-card)',
               borderRadius: 12,
               width: '100%',
               maxWidth: 380,
-              boxShadow:
-                '0 20px 60px rgba(0,0,0,0.3)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
               overflow: 'hidden',
             }}
           >
-            <div
-              style={{
-                padding: '1.6rem',
-                textAlign: 'center',
-              }}
-            >
+            <div style={{ padding: '1.6rem', textAlign: 'center' }}>
               <div
                 style={{
                   width: 56,
                   height: 56,
                   borderRadius: '50%',
-                  background:
-                    'rgba(46,125,50,0.1)',
+                  background: 'rgba(46,125,50,0.1)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent:
-                    'center',
-                  margin:
-                    '0 auto 14px',
+                  justifyContent: 'center',
+                  margin: '0 auto 14px',
                 }}
               >
-                <CheckCircle2
-                  size={28}
-                  color="#2e7d32"
-                />
+                <CheckCircle2 size={28} color="#2e7d32" />
               </div>
-
               <h3
                 style={{
                   fontSize: '1.05rem',
                   fontWeight: 700,
-                  color:
-                    'var(--text-main)',
+                  color: 'var(--text-main)',
                   marginBottom: 6,
                 }}
               >
                 Ticket Raised Successfully!
               </h3>
-
-              <p
-                style={{
-                  fontSize: '0.82rem',
-                  color:
-                    'var(--text-muted)',
-                  marginBottom: 4,
-                }}
-              >
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 4 }}>
                 Your ticket{' '}
                 <strong
-                  style={{
-                    color:
-                      'var(--red-primary)',
-                    fontFamily:
-                      'IBM Plex Mono',
-                  }}
+                  style={{ color: 'var(--red-primary)', fontFamily: 'IBM Plex Mono' }}
                 >
                   {successTicketNo}
                 </strong>{' '}
                 has been submitted.
               </p>
-
-              <p
-                style={{
-                  fontSize: '0.78rem',
-                  color:
-                    'var(--text-muted)',
-                }}
-              >
-                IT team will respond
-                within 4 business
-                hours.
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                IT team will respond within 4 business hours.
               </p>
             </div>
-
-            <div
-              style={{
-                borderTop:
-                  '1px solid var(--border)',
-              }}
-            >
+            <div style={{ borderTop: '1px solid var(--border)' }}>
               <button
                 type="button"
                 onClick={() => {
                   setSuccessTicketNo(null)
-
                   router.push(
-                    user?.role === 'admin'
-                      ? '/admin/dashboard'
-                      : '/employee/dashboard'
+                    isAdminUser ? '/admin/dashboard' : '/employee/dashboard'
                   )
                 }}
                 style={{
                   width: '100%',
                   padding: '13px',
                   border: 'none',
-                  background:
-                    'var(--red-primary)',
+                  background: 'var(--red-primary)',
                   color: '#fff',
                   cursor: 'pointer',
                   fontSize: '0.85rem',
