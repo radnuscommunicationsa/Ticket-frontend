@@ -22,6 +22,7 @@ export default function AppLayout({ children, role }: LayoutProps) {
   const path = usePathname()
   const [user, setUser] = useState<any>(null)
   const [notifCount, setNotifCount] = useState(0)
+  const [takeHomeCount, setTakeHomeCount] = useState(0)
   const [dark, setDark] = useState(false)
   const [sideOpen, setSideOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -89,11 +90,22 @@ export default function AppLayout({ children, role }: LayoutProps) {
   }, [showEdit])
 
   const fetchNotifs = async () => {
-    try {
-      const { data } = await api.get('/notifications')
-      setNotifCount(data.unread_count || 0)
-    } catch {}
+  try {
+    const { data } = await api.get('/notifications')
+
+    setNotifCount(data?.unread_count || 0)
+
+    if (role === 'admin') {
+      const { data: takeHomeData } = await api.get(
+        '/assets/take-home-requests/pending-count'
+      )
+
+      setTakeHomeCount(takeHomeData?.count || 0)
+    }
+  } catch (error) {
+    console.error('Notification count error:', error)
   }
+}
 
   const toggleDark = () => {
     if (typeof window === 'undefined') return;
@@ -176,7 +188,7 @@ export default function AppLayout({ children, role }: LayoutProps) {
     { href: '/admin/tickets', icon: <Ticket size={18}/>, label: 'All Tickets' },
     { href: '/employee/raise-ticket', icon: <Plus size={18}/>, label: 'Raise Ticket' },
     { href: '/admin/assets', icon: <Monitor size={18}/>, label: 'Assets' },
-    { href: '/admin/take-home-requests', icon: <Home size={18}/>, label: 'Take Home Requests' },   // ← NEW LINE
+    { href: '/admin/take-home-requests', icon: <Home size={18}/>, label: 'Take Home Requests', badge: takeHomeCount },
     { href: '/admin/employees', icon: <Users size={18}/>, label: 'Employees' },
     { href: '/admin/feedback', icon: <Star size={18}/>, label: 'Feedback' },
     { href: '/admin/reports', icon: <BarChart3 size={18}/>, label: 'Monthly Report' },

@@ -3,7 +3,14 @@ import { useEffect, useState } from 'react'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader } from '@/components/ui'
 import api from '@/lib/api'
-import { Bell, Ticket, CheckCircle2, AlertOctagon, AlertTriangle } from 'lucide-react'
+import {
+  Bell,
+  Ticket,
+  CheckCircle2,
+  AlertOctagon,
+  AlertTriangle,
+  Home
+} from 'lucide-react'
 
 export default function AdminNotifications() {
   const [notifs, setNotifs] = useState<any[]>([])
@@ -43,12 +50,74 @@ export default function AdminNotifications() {
   }
 
   const getIcon = (type: string, msg: string) => {
-    if (type === 'ticket_created') return <Ticket size={20} color="var(--red-primary)" strokeWidth={2}/>
-    if (type === 'ticket_updated') return <CheckCircle2 size={20} color="#2e7d32" strokeWidth={2}/>
-    if (/critical/i.test(msg)) return <AlertOctagon size={20} color="#b71c1c" strokeWidth={2}/>
-    if (/high/i.test(msg)) return <AlertTriangle size={20} color="#e65100" strokeWidth={2}/>
-    return <Bell size={20} color="var(--text-muted)" strokeWidth={2}/>
+  if (type === 'take_home_request') {
+    return (
+      <Home
+        size={20}
+        color="var(--red-primary)"
+        strokeWidth={2}
+      />
+    )
   }
+
+  if (type === 'take_home_status') {
+    return (
+      <Home
+        size={20}
+        color="#1565c0"
+        strokeWidth={2}
+      />
+    )
+  }
+
+  if (type === 'ticket_created') {
+    return (
+      <Ticket
+        size={20}
+        color="var(--red-primary)"
+        strokeWidth={2}
+      />
+    )
+  }
+
+  if (type === 'ticket_updated') {
+    return (
+      <CheckCircle2
+        size={20}
+        color="#2e7d32"
+        strokeWidth={2}
+      />
+    )
+  }
+
+  if (/critical/i.test(msg)) {
+    return (
+      <AlertOctagon
+        size={20}
+        color="#b71c1c"
+        strokeWidth={2}
+      />
+    )
+  }
+
+  if (/high/i.test(msg)) {
+    return (
+      <AlertTriangle
+        size={20}
+        color="#e65100"
+        strokeWidth={2}
+      />
+    )
+  }
+
+  return (
+    <Bell
+      size={20}
+      color="var(--text-muted)"
+      strokeWidth={2}
+    />
+  )
+}
 
   return (
     <AppLayout role="admin">
