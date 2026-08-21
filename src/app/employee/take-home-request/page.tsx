@@ -29,6 +29,7 @@ import {
   ChevronUp,
   History,
   RefreshCw,
+  Infinity,
 } from 'lucide-react'
 
 /* =========================================================
@@ -113,7 +114,6 @@ const ASSET_TYPES = [
   { value: 'other', label: 'Other IT Equipment', icon: Briefcase, desc: 'Any other IT asset' },
 ]
 
-
 /* =========================================================
    ASSET TYPE KEYWORDS (robust matching)
 ========================================================= */
@@ -137,6 +137,7 @@ function assetMatchesType(asset: any, typeValue: string): boolean {
   const keywords = TYPE_KEYWORDS[typeValue] || [typeValue]
   return keywords.some((k) => assetType.includes(k))
 }
+
 /* =========================================================
    REQUEST STATUS CONFIG
 ========================================================= */
@@ -147,6 +148,7 @@ const STATUS_LABEL: Record<string, string> = {
   approved: 'Approved — Ready',
   rejected: 'Rejected',
   returned: 'Returned',
+  permanent: 'Permanent Handover',
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -155,6 +157,7 @@ const STATUS_COLOR: Record<string, string> = {
   approved: '#2e7d32',
   rejected: '#c62828',
   returned: '#616161',
+  permanent: '#6a1b9a',
 }
 
 const STATUS_STEP: Record<string, number> = {
@@ -163,6 +166,7 @@ const STATUS_STEP: Record<string, number> = {
   approved: 3,
   rejected: -1,
   returned: 4,
+  permanent: 3,
 }
 
 function fmtDate(d?: string) {
@@ -276,6 +280,7 @@ function MyRequestsSection() {
           {requests.map((req) => {
             const isOpen = expandedIds.has(req._id)
             const step = STATUS_STEP[req.status] ?? 0
+            const isPermanent = req.is_permanent === true
 
             return (
               <div key={req._id} style={{ borderBottom: '1px solid var(--border-mid)' }}>
@@ -297,7 +302,14 @@ function MyRequestsSection() {
                       {getAssetLabel(req)}
                     </span>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                      {fmtDate(req.from_date)} → {fmtDate(req.to_date)}
+                      {isPermanent ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Infinity size={11} />
+                          Permanent from {fmtDate(req.from_date)}
+                        </span>
+                      ) : (
+                        `${fmtDate(req.from_date)} → ${fmtDate(req.to_date)}`
+                      )}
                     </span>
                   </div>
 
@@ -327,7 +339,7 @@ function MyRequestsSection() {
                   <div style={{ padding: '0 1.2rem 1rem', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {step > 0 && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0.5rem 0' }}>
-                        {['Submitted', 'Manager Approval', 'IT Approval', 'Returned'].map((label, idx) => {
+                        {['Submitted', 'Manager Approval', 'IT Approval', isPermanent ? 'Permanent' : 'Returned'].map((label, idx) => {
                           const stepNum = idx + 1
                           const reached = step >= stepNum || (stepNum === 1)
                           const isCurrent = step === stepNum
@@ -386,6 +398,18 @@ function MyRequestsSection() {
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-main)' }}>{req.reason}</div>
                       </div>
 
+                      {isPermanent && (
+                        <div>
+                          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>
+                            <Infinity size={10} style={{ display: 'inline', marginRight: 4 }} />
+                            Permanent Handover Date
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                            {fmtDate(req.from_date)}
+                          </div>
+                        </div>
+                      )}
+
                       {req.notes && (
                         <div style={{ gridColumn: '1 / -1' }}>
                           <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>
@@ -434,6 +458,7 @@ export default function AssetTakeHomeRequest() {
     reason: '',
     from_date: '',
     to_date: '',
+    is_permanent: false,
     emergency_contact: '',
     emergency_phone: '',
     acknowledgement: false,
@@ -502,7 +527,7 @@ export default function AssetTakeHomeRequest() {
   /* Toggle a type on/off (multi-select) instead of switching to a single type.
      When a type is removed, any selected assets that only matched that
      type are dropped from the selection so the list stays consistent. */
-    const handleTypeToggle = (type: string) => {
+  const handleTypeToggle = (type: string) => {
     setForm((prev) => {
       const isActive = prev.asset_types.includes(type)
       const nextTypes = isActive
@@ -541,10 +566,11 @@ export default function AssetTakeHomeRequest() {
 
   /* Figure out which selected type an asset belongs to, for the
      per-request asset_type field the backend expects. */
-    const resolveAssetType = (asset: any): string => {
+  const resolveAssetType = (asset: any): string => {
     const match = form.asset_types.find((t) => assetMatchesType(asset, t))
     return match || 'other'
   }
+
   /* =========================================================
      VALIDATION
   ========================================================= */
@@ -553,9 +579,11 @@ export default function AssetTakeHomeRequest() {
   const assetSelected = form.asset_ids.length > 0
   const reasonValid = form.reason.trim().length > 0
   const fromValid = !!form.from_date
-  const toValid = !!form.to_date
+  const toValid = form.is_permanent ? true : !!form.to_date
   const datesValid =
-    fromValid && toValid ? new Date(form.from_date) <= new Date(form.to_date) : true
+    fromValid && toValid && !form.is_permanent
+      ? new Date(form.from_date) <= new Date(form.to_date)
+      : true
   const phoneValid = form.emergency_phone.trim().length >= 8
   const ackChecked = form.acknowledgement
 
@@ -563,7 +591,7 @@ export default function AssetTakeHomeRequest() {
      FILTERED ASSETS — matches ANY of the selected types
   ========================================================= */
 
-    const filteredAssets = myAssets
+  const filteredAssets = myAssets
     .filter((a: any) => {
       if (form.asset_types.length === 0) return false
       return form.asset_types.some((t) => assetMatchesType(a, t))
@@ -606,7 +634,14 @@ export default function AssetTakeHomeRequest() {
       return
     }
 
-    if (!fromValid || !toValid) {
+    if (!fromValid) {
+      setErrorMsg('Please select the handover date.')
+      setTouched((prev) => ({ ...prev, from_date: true }))
+      setLoading(false)
+      return
+    }
+
+    if (!form.is_permanent && (!fromValid || !toValid)) {
       setErrorMsg('Please select both from and to dates.')
       setTouched((prev) => ({ ...prev, from_date: true, to_date: true }))
       setLoading(false)
@@ -633,14 +668,16 @@ export default function AssetTakeHomeRequest() {
     }
 
     try {
+      
       const baseFields = {
         reason: form.reason.trim(),
         from_date: form.from_date,
-        to_date: form.to_date,
+        to_date: form.is_permanent ? '2099-12-31' : form.to_date,
+        is_permanent: form.is_permanent,
         emergency_contact: form.emergency_contact.trim() || user?.name,
         emergency_phone: form.emergency_phone.trim(),
       }
-
+      
       const results = await Promise.allSettled(
         form.asset_ids.map((asset_id) => {
           const asset = myAssets.find((a: any) => (a._id || a.id) === asset_id)
@@ -959,16 +996,74 @@ export default function AssetTakeHomeRequest() {
               </div>
             </FG>
 
+            {/* PERMANENT TAKE-HOME TOGGLE */}
+            <div
+              style={{
+                padding: '0.9rem 1rem',
+                borderRadius: 8,
+                background: form.is_permanent ? 'rgba(106,27,154,0.06)' : 'var(--bg-mid)',
+                border: form.is_permanent ? '1px solid rgba(106,27,154,0.3)' : '1px solid var(--border)',
+                display: 'flex',
+                gap: 10,
+                alignItems: 'flex-start',
+                transition: 'all 0.2s',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => updateForm({ is_permanent: !form.is_permanent })}
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 5,
+                  border: form.is_permanent
+                    ? '2px solid #6a1b9a'
+                    : '2px solid var(--border)',
+                  background: form.is_permanent ? '#6a1b9a' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  marginTop: 2,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {form.is_permanent && <Check size={12} color="#fff" strokeWidth={3} />}
+              </button>
+
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: form.is_permanent ? '#6a1b9a' : 'var(--text-main)',
+                    marginBottom: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Infinity size={14} />
+                  Permanent Take-Home
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Check this if you are taking this asset permanently (no return date required). 
+                  You must still select a handover date below.
+                </div>
+              </div>
+            </div>
+
             {/* DURATION */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gridTemplateColumns: form.is_permanent ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
                 gap: '1rem',
               }}
             >
               <FG
-                label="From Date *"
+                label={form.is_permanent ? 'Permanent Handover Date *' : 'From Date *'}
                 error={
                   touched.from_date && !fromValid
                     ? 'Required'
@@ -976,6 +1071,7 @@ export default function AssetTakeHomeRequest() {
                       ? 'Invalid date range'
                       : undefined
                 }
+                hint={form.is_permanent ? 'The date from which this asset becomes permanently assigned to you.' : undefined}
               >
                 <div style={{ position: 'relative' }}>
                   <input
@@ -1000,38 +1096,40 @@ export default function AssetTakeHomeRequest() {
                 </div>
               </FG>
 
-              <FG
-                label="Expected Return Date *"
-                error={
-                  touched.to_date && !toValid
-                    ? 'Required'
-                    : touched.from_date && touched.to_date && !datesValid
-                      ? 'Must be after from date'
-                      : undefined
-                }
-              >
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="date"
-                    min={form.from_date || today}
-                    value={form.to_date}
-                    onChange={(e) => updateForm({ to_date: e.target.value })}
-                    onBlur={() => setTouched((prev) => ({ ...prev, to_date: true }))}
-                    style={inp}
-                  />
-                  <Calendar
-                    size={14}
-                    color="var(--text-muted)"
-                    style={{
-                      position: 'absolute',
-                      right: 10,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      pointerEvents: 'none',
-                    }}
-                  />
-                </div>
-              </FG>
+              {!form.is_permanent && (
+                <FG
+                  label="Expected Return Date *"
+                  error={
+                    touched.to_date && !toValid
+                      ? 'Required'
+                      : touched.from_date && touched.to_date && !datesValid
+                        ? 'Must be after from date'
+                        : undefined
+                  }
+                >
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="date"
+                      min={form.from_date || today}
+                      value={form.to_date}
+                      onChange={(e) => updateForm({ to_date: e.target.value })}
+                      onBlur={() => setTouched((prev) => ({ ...prev, to_date: true }))}
+                      style={inp}
+                    />
+                    <Calendar
+                      size={14}
+                      color="var(--text-muted)"
+                      style={{
+                        position: 'absolute',
+                        right: 10,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </div>
+                </FG>
+              )}
             </div>
 
             {/* REASON — no minimum character requirement */}
@@ -1047,7 +1145,9 @@ export default function AssetTakeHomeRequest() {
                 value={form.reason}
                 onChange={(e) => updateForm({ reason: e.target.value })}
                 onBlur={() => setTouched((prev) => ({ ...prev, reason: true }))}
-                placeholder="Explain why you need this asset at home (e.g., remote work project, WFH mandate, client visit prep...)"
+                placeholder={form.is_permanent 
+                  ? "Explain why you need this asset permanently (e.g., permanent WFH, role change, replacement for personal device...)" 
+                  : "Explain why you need this asset at home (e.g., remote work project, WFH mandate, client visit prep...)"}
                 style={{
                   ...inp,
                   minHeight: 100,
@@ -1166,10 +1266,9 @@ export default function AssetTakeHomeRequest() {
                   Terms & Responsibility
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  I acknowledge that I am responsible for the safekeeping of this company asset
-                  while it is in my possession. I agree to return it by the specified date, report
-                  any damage immediately, and understand that misuse or loss may result in
-                  disciplinary action or recovery of costs.
+                  {form.is_permanent 
+                    ? "I acknowledge that this asset is being permanently assigned to me. I am responsible for its safekeeping and maintenance. I understand that this asset becomes part of my permanent work equipment and I must report any loss or damage immediately."
+                    : "I acknowledge that I am responsible for the safekeeping of this company asset while it is in my possession. I agree to return it by the specified date, report any damage immediately, and understand that misuse or loss may result in disciplinary action or recovery of costs."}
                 </div>
               </div>
             </div>
