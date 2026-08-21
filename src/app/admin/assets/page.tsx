@@ -59,7 +59,18 @@ const BRANDS = [
   'TP-Link',
   'Logitech',
   'Canon',
-  'Epson',  
+  'Epson',
+  'Redmi',
+  'Poco',
+  'OnePlus',
+  'Vivo',
+  'Oppo',
+  'Realme',
+  'Motorola',
+  'Nokia',
+  'Google',
+  'Sony',
+  'Huawei',
 ]
 
 const STATUS_LIST = [
@@ -672,6 +683,16 @@ function AssetForm({
       assigned_to: '',
     })
 
+  const [isOtherBrand, setIsOtherBrand] = useState(
+    !!existing?.brand && !BRANDS.includes(existing.brand)
+  )
+
+  const [customBrand, setCustomBrand] = useState(
+    existing?.brand && !BRANDS.includes(existing.brand)
+      ? existing.brand
+      : ''
+  )
+
   const [rows, setRows] = useState<AssetRow[]>(
     existing
       ? [
@@ -806,8 +827,9 @@ function AssetForm({
         }
 
         /*
-          assigned_to is not changed from edit form.
-          Assignment is handled separately.
+          assigned_to for the EXISTING asset is not changed
+          from this form. Assignment for it is handled
+          separately via Assign / Unassign buttons.
         */
         delete (payload as any).assigned_to
 
@@ -816,9 +838,35 @@ function AssetForm({
           payload
         )
 
+        /*
+          Extra rows added via "Add Another Asset" while
+          editing are brand-new assets — create them, and
+          assign them to the selected employee if chosen.
+        */
+        const extraRows = rows.slice(1)
+
+        if (extraRows.length > 0) {
+          await Promise.all(
+            extraRows.map((row) =>
+              api.post('/assets', {
+                ...shared,
+                ...row,
+                status: shared.assigned_to
+                  ? 'Assigned'
+                  : shared.status,
+                assigned_to:
+                  shared.assigned_to || undefined,
+              })
+            )
+          )
+        }
+
         setMsg({
           type: 'success',
-          text: 'Asset updated successfully!',
+          text:
+            extraRows.length > 0
+              ? `Asset updated and ${extraRows.length} new asset(s) added.`
+              : 'Asset updated successfully!',
         })
       }
 
@@ -885,51 +933,86 @@ function AssetForm({
     <form onSubmit={submit}>
       {/* ASSIGN TO */}
 
-      {!existing && (
-        <>
-          <FormGroup label="Assign To (Optional)">
-            <select
-              value={shared.assigned_to}
-              onChange={(e) =>
-                updateShared(
-                  'assigned_to',
-                  e.target.value
-                )
-              }
-              style={inputStyle}
-            >
-              <option value="">
-                — Select Employee (Optional) —
+      <FormGroup
+        label={
+          existing && rows.length === 1
+            ? 'Assigned To'
+            : 'Assign New Asset(s) To (Optional)'
+        }
+      >
+        <select
+          value={
+            existing && rows.length === 1
+              ? existing.assigned_to || ''
+              : shared.assigned_to
+          }
+          disabled={!!existing && rows.length === 1}
+          onChange={(e) =>
+            updateShared('assigned_to', e.target.value)
+          }
+          style={{
+            ...inputStyle,
+            ...(existing && rows.length === 1
+              ? { background: 'var(--bg-mid)', cursor: 'not-allowed' }
+              : {}),
+          }}
+        >
+          <option value="">
+            — Select Employee (Optional) —
+          </option>
+
+          {employees.map((employee) => {
+            const id =
+              employee._id || employee.id
+
+            return (
+              <option key={id} value={id}>
+                {employee.name ||
+                  employee.full_name ||
+                  'Unnamed Employee'}
+
+                {employee.department
+                  ? ` - ${employee.department}`
+                  : ''}
               </option>
+            )
+          })}
+        </select>
 
-              {employees.map((employee) => {
-                const id =
-                  employee._id || employee.id
-
-                return (
-                  <option key={id} value={id}>
-                    {employee.name ||
-                      employee.full_name ||
-                      'Unnamed Employee'}
-
-                    {employee.department
-                      ? ` - ${employee.department}`
-                      : ''}
-                  </option>
-                )
-              })}
-            </select>
-          </FormGroup>
-
-          <div
+        {existing && rows.length === 1 && (
+          <span
             style={{
-              borderBottom:
-                '1px solid var(--border)',
-              marginBottom: '1rem',
+              fontSize: '0.7rem',
+              color: 'var(--text-muted)',
+              marginTop: 4,
+              display: 'block',
             }}
-          />
-        </>
-      )}
+          >
+            Use Assign / Unassign buttons in the table to change this.
+          </span>
+        )}
+
+        {existing && rows.length > 1 && (
+          <span
+            style={{
+              fontSize: '0.7rem',
+              color: 'var(--text-muted)',
+              marginTop: 4,
+              display: 'block',
+            }}
+          >
+            This applies only to the newly added asset(s) below — not the existing asset (code above).
+          </span>
+        )}
+      </FormGroup>
+
+      <div
+        style={{
+          borderBottom:
+            '1px solid var(--border)',
+          marginBottom: '1rem',
+        }}
+      />
 
       {/* CATEGORY + STATUS */}
 
@@ -1005,42 +1088,43 @@ function AssetForm({
           gap: '1rem',
         }}
       >
-      <FormGroup label="Brand">
-  <select
-    value={
-      shared.brand === '' || BRANDS.includes(shared.brand)
-        ? shared.brand
-        : 'Other'
-    }
-    onChange={(e) => {
-      if (e.target.value === 'Other') {
-        updateShared('brand', '__other__')
-      } else {
-        updateShared('brand', e.target.value)
-      }
-    }}
-    style={inputStyle}
-  >
-    <option value="">— Select Brand —</option>
-    {BRANDS.map((brand) => (
-      <option key={brand} value={brand}>
-        {brand}
-      </option>
-    ))}
-    <option value="Other">Other</option>
-  </select>
+        <FormGroup label="Brand">
+          <select
+            value={isOtherBrand ? 'Other' : shared.brand}
+            onChange={(e) => {
+              if (e.target.value === 'Other') {
+                setIsOtherBrand(true)
+                updateShared('brand', customBrand)
+              } else {
+                setIsOtherBrand(false)
+                setCustomBrand('')
+                updateShared('brand', e.target.value)
+              }
+            }}
+            style={inputStyle}
+          >
+            <option value="">— Select Brand —</option>
+            {BRANDS.map((brand) => (
+              <option key={brand} value={brand}>
+                {brand}
+              </option>
+            ))}
+            <option value="Other">Other</option>
+          </select>
 
-  {shared.brand === '__other__' && (
-    <input
-      value=""
-      onChange={(e) => updateShared('brand', e.target.value)}
-      placeholder="Enter brand name"
-      autoFocus
-      style={{ ...inputStyle, marginTop: 6 }}
-    />
-  )}
-</FormGroup>
-
+          {isOtherBrand && (
+            <input
+              value={customBrand}
+              onChange={(e) => {
+                setCustomBrand(e.target.value)
+                updateShared('brand', e.target.value)
+              }}
+              placeholder="Enter brand name"
+              autoFocus
+              style={{ ...inputStyle, marginTop: 6 }}
+            />
+          )}
+        </FormGroup>
 
         <FormGroup label="Model">
           <input
@@ -1236,7 +1320,7 @@ function AssetForm({
             />
           </div>
 
-          {!existing && rows.length > 1 && (
+          {rows.length > 1 && index > 0 && (
             <button
               type="button"
               onClick={() =>
@@ -1262,30 +1346,28 @@ function AssetForm({
 
       {/* ADD ANOTHER */}
 
-      {!existing && (
-        <button
-          type="button"
-          onClick={addRow}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '8px 16px',
-            borderRadius: 5,
-            border:
-              '1px dashed var(--border)',
-            background: 'transparent',
-            color: 'var(--red-primary)',
-            cursor: 'pointer',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            marginBottom: '1.2rem',
-          }}
-        >
-          <Plus size={15} />
-          Add Another Asset
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={addRow}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '8px 16px',
+          borderRadius: 5,
+          border:
+            '1px dashed var(--border)',
+          background: 'transparent',
+          color: 'var(--red-primary)',
+          cursor: 'pointer',
+          fontSize: '0.8rem',
+          fontWeight: 600,
+          marginBottom: '1.2rem',
+        }}
+      >
+        <Plus size={15} />
+        Add Another Asset
+      </button>
 
       {/* BUTTONS */}
 
@@ -1413,6 +1495,14 @@ export default function AdminAssets() {
     useState('')
 
   const [q, setQ] = useState('')
+
+  const [sortBy, setSortBy] = useState<
+    'name' | 'asset_code' | 'status' | 'purchase_date'
+  >('asset_code')
+
+  const [sortOrder, setSortOrder] = useState<
+    'asc' | 'desc'
+  >('asc')
 
   /* =======================================================
      EXPAND / COLLAPSE
@@ -1777,11 +1867,48 @@ export default function AdminAssets() {
   ])
 
   /* =======================================================
+     SORT ASSETS
+  ======================================================= */
+
+  const sortedAssets = useMemo(() => {
+    const list = [...filteredAssets]
+
+    list.sort((a, b) => {
+      let valA: string | number = ''
+      let valB: string | number = ''
+
+      if (sortBy === 'name') {
+        valA = (a.name || '').toLowerCase()
+        valB = (b.name || '').toLowerCase()
+      } else if (sortBy === 'asset_code') {
+        valA = (a.asset_code || '').toLowerCase()
+        valB = (b.asset_code || '').toLowerCase()
+      } else if (sortBy === 'status') {
+        valA = (a.status || '').toLowerCase()
+        valB = (b.status || '').toLowerCase()
+      } else if (sortBy === 'purchase_date') {
+        valA = a.purchase_date
+          ? new Date(a.purchase_date).getTime()
+          : 0
+        valB = b.purchase_date
+          ? new Date(b.purchase_date).getTime()
+          : 0
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return list
+  }, [filteredAssets, sortBy, sortOrder])
+
+  /* =======================================================
      GROUP ASSETS
   ======================================================= */
 
   const groupedAssets = useMemo(() => {
-    return filteredAssets.reduce(
+    return sortedAssets.reduce(
       (
         result: Record<
           string,
@@ -1803,7 +1930,7 @@ export default function AdminAssets() {
       },
       {}
     )
-  }, [filteredAssets])
+  }, [sortedAssets])
 
   const categories = useMemo(
     () =>
@@ -1864,6 +1991,8 @@ export default function AdminAssets() {
     setAssignedF('')
     setWarrantyF('')
     setQ('')
+    setSortBy('asset_code')
+    setSortOrder('asc')
 
     setExpandedCats(new Set())
   }
@@ -1903,7 +2032,7 @@ export default function AdminAssets() {
       })
     }
   }
-
+  
   /* =======================================================
      ASSIGN
   ======================================================= */
@@ -2269,6 +2398,73 @@ export default function AdminAssets() {
               No Warranty
             </option>
           </select>
+
+          {/* SORT BY */}
+
+          <select
+            value={sortBy}
+            onChange={(e) =>
+              setSortBy(
+                e.target.value as
+                  | 'name'
+                  | 'asset_code'
+                  | 'status'
+                  | 'purchase_date'
+              )
+            }
+            style={filterStyle}
+          >
+            <option value="asset_code">
+              Sort: Asset Code
+            </option>
+
+            <option value="name">
+              Sort: Asset Name
+            </option>
+
+            <option value="status">
+              Sort: Status
+            </option>
+
+            <option value="purchase_date">
+              Sort: Purchase Date
+            </option>
+          </select>
+
+          {/* SORT ORDER */}
+
+          <button
+            type="button"
+            onClick={() =>
+              setSortOrder((prev) =>
+                prev === 'asc' ? 'desc' : 'asc'
+              )
+            }
+            title={
+              sortOrder === 'asc'
+                ? 'Ascending (click for descending)'
+                : 'Descending (click for ascending)'
+            }
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '8px 12px',
+              borderRadius: 5,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-sub)',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+            }}
+          >
+            {sortOrder === 'asc' ? (
+              <ChevronUp size={13} />
+            ) : (
+              <ChevronDown size={13} />
+            )}
+            {sortOrder === 'asc' ? 'A–Z' : 'Z–A'}
+          </button>
 
           {/* CLEAR */}
 

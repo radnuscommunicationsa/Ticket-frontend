@@ -21,6 +21,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  Printer,
 } from 'lucide-react'
 
 /* =========================================================
@@ -324,6 +325,284 @@ export default function AdminTakeHomeRequests() {
     }
   }
 
+const handlePrint = (req: TakeHomeRequest) => {
+  const employee = getEmployeeLabel(req)
+  const asset = getAssetLabel(req)
+  const status = STATUS_LABEL[req.status] || req.status
+  const statusColor = STATUS_COLOR[req.status] || '#616161'
+
+  const iframe = document.createElement('iframe')
+  iframe.style.position = 'fixed'
+  iframe.style.right = '0'
+  iframe.style.bottom = '0'
+  iframe.style.width = '0'
+  iframe.style.height = '0'
+  iframe.style.border = '0'
+  document.body.appendChild(iframe)
+
+  const doc = iframe.contentWindow?.document
+  if (!doc) return
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Asset Take-Home Form</title>
+  <style>
+    @page { margin: 0; size: A4; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: Arial, Helvetica, sans-serif; 
+      font-size: 11px; 
+      color: #000; 
+      line-height: 1.45;
+    }
+    .page {
+      width: 210mm;
+      height: 297mm;
+      padding: 12mm;
+    }
+    .box {
+      border: 2px solid #000;
+      padding: 16px;
+      height: 273mm;
+    }
+    .title {
+      text-align: center;
+      border-bottom: 2px solid #c62828;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .title h1 {
+      font-size: 18px;
+      color: #c62828;
+      letter-spacing: 1px;
+      margin: 0;
+    }
+    .title p {
+      font-size: 10px;
+      color: #333;
+      margin: 4px 0 0;
+    }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      color: #333;
+    }
+    table.form {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      font-size: 11px;
+    }
+    table.form td, table.form th {
+      border: 1px solid #000;
+      padding: 7px 10px;
+      vertical-align: middle;
+    }
+    table.form th {
+      background: #e8e8e8;
+      width: 26%;
+      font-size: 9px;
+      font-weight: bold;
+      text-transform: uppercase;
+      text-align: left;
+      letter-spacing: 0.3px;
+    }
+    .section {
+      background: #c62828 !important;
+      color: #fff !important;
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 6px 10px !important;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 9px;
+      font-weight: bold;
+      color: #fff;
+      background: ${statusColor};
+    }
+    .terms {
+      border: 1px solid #000;
+      padding: 12px;
+      margin-bottom: 16px;
+      background: #fafafa;
+    }
+    .terms h4 {
+      font-size: 10px;
+      color: #c62828;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+    .terms ol {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 10.5px;
+    }
+    .terms li {
+      margin-bottom: 5px;
+    }
+    .ack {
+      border: 1px solid #000;
+      padding: 12px;
+      margin-bottom: 20px;
+      font-size: 11px;
+      background: #fff;
+    }
+    .signatures {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      margin-top: 10px;
+    }
+    .sign-box {
+      flex: 1;
+      text-align: center;
+      padding: 0 8px;
+    }
+    .sign-line {
+      border-top: 1px solid #000;
+      height: 40px;
+      margin-bottom: 6px;
+    }
+    .sign-label {
+      font-size: 9px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #000;
+      margin-bottom: 3px;
+    }
+    .sign-sub {
+      font-size: 10px;
+      color: #333;
+    }
+    .footer {
+      text-align: center;
+      font-size: 8px;
+      color: #666;
+      border-top: 1px solid #bbb;
+      padding-top: 6px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="box">
+      <div class="title">
+        <h1>ASSET TAKE-HOME REQUEST FORM</h1>
+        <p>IT Asset Management Department | TicketDesk</p>
+      </div>
+
+      <div class="meta">
+        <span>Ref: THR-${req._id.slice(-6).toUpperCase()}</span>
+        <span>Date: ${new Date().toLocaleDateString('en-GB')}</span>
+      </div>
+
+      <table class="form">
+        <tr>
+          <td colspan="2" class="section">Employee &amp; Asset Details</td>
+        </tr>
+        <tr>
+          <th>Employee Name</th>
+          <td><strong>${employee}</strong></td>
+        </tr>
+        <tr>
+          <th>Department</th>
+          <td>${(typeof req.employee_id === 'object' && req.employee_id?.department) || '—'}</td>
+        </tr>
+        <tr>
+          <th>Asset Details</th>
+          <td><strong>${asset}</strong> &nbsp;|&nbsp; Type: ${req.asset_type || '—'}</td>
+        </tr>
+        <tr>
+          <th>Period</th>
+          <td>${fmtDate(req.from_date)} <strong>to</strong> ${fmtDate(req.to_date)}</td>
+        </tr>
+        <tr>
+          <th>Status</th>
+          <td><span class="badge">${status}</span></td>
+        </tr>
+        <tr>
+          <th>Emergency Contact</th>
+          <td>${req.emergency_contact || '—'} &nbsp;|&nbsp; ${req.emergency_phone}</td>
+        </tr>
+        <tr>
+          <th>Reason / Purpose</th>
+          <td>${req.reason}</td>
+        </tr>
+        ${req.notes ? `
+        <tr>
+          <th>Admin Notes</th>
+          <td style="font-style:italic;color:#444;">${req.notes}</td>
+        </tr>
+        ` : ''}
+      </table>
+
+      <div class="terms">
+        <h4>Terms &amp; Responsibilities</h4>
+        <ol>
+          <li>I am responsible for the safekeeping of this asset and agree to return it by the specified date.</li>
+          <li>I will immediately report any loss, theft, or damage to my Manager and IT.</li>
+          <li>Misuse or negligence may result in disciplinary action and/or cost recovery.</li>
+        </ol>
+      </div>
+
+      <div class="ack">
+        I, <strong>${employee}</strong>, have read and agree to the above terms. I accept full responsibility for this asset during the take-home period.
+      </div>
+
+      <div class="signatures">
+        <div class="sign-box">
+          <div class="sign-line"></div>
+          <div class="sign-label">Employee Signature</div>
+          <div class="sign-sub">${employee}</div>
+        </div>
+        <div class="sign-box">
+          <div class="sign-line"></div>
+          <div class="sign-label">Manager Approval</div>
+          <div class="sign-sub">Date: ___________</div>
+        </div>
+        <div class="sign-box">
+          <div class="sign-line"></div>
+          <div class="sign-label">IT Handover</div>
+          <div class="sign-sub">Date: ___________</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        System-generated from TicketDesk IT Portal &nbsp;|&nbsp; Doc ID: ${req._id} &nbsp;|&nbsp; ${new Date().toLocaleString('en-GB')}
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `
+
+  doc.open()
+  doc.write(html)
+  doc.close()
+
+  setTimeout(() => {
+    iframe.contentWindow?.focus()
+    iframe.contentWindow?.print()
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe)
+      }
+    }, 1000)
+  }, 600)
+}
   /* =========================================================
      RENDER
   ========================================================= */
@@ -546,6 +825,15 @@ export default function AdminTakeHomeRequests() {
 
                       {/* ACTIONS */}
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => handlePrint(req)}
+                          style={actionBtn('#616161', true)}
+                        >
+                          <Printer size={13} />
+                          Print / Download
+                        </button>
+
                         {req.status === 'pending' && (isManager || isSystemAdmin) && (
                           <>
                             <button

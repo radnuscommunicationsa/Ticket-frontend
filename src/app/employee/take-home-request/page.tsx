@@ -113,6 +113,30 @@ const ASSET_TYPES = [
   { value: 'other', label: 'Other IT Equipment', icon: Briefcase, desc: 'Any other IT asset' },
 ]
 
+
+/* =========================================================
+   ASSET TYPE KEYWORDS (robust matching)
+========================================================= */
+
+const TYPE_KEYWORDS: Record<string, string[]> = {
+  laptop: ['laptop', 'notebook', 'computer', 'macbook'],
+  mobile: ['mobile', 'phone', 'smartphone', 'cell', 'iphone', 'android', 'device'],
+  tablet: ['tablet', 'ipad', 'tab'],
+  monitor: ['monitor', 'display', 'screen', 'peripheral', 'keyboard', 'mouse', 'desktop'],
+  other: [],
+}
+
+function assetMatchesType(asset: any, typeValue: string): boolean {
+  const assetType = (asset.type || asset.category || asset.asset_type || '').toLowerCase()
+  if (typeValue === 'other') {
+    const allKnown = Object.values(TYPE_KEYWORDS)
+      .flat()
+      .filter((k) => k !== 'other')
+    return !allKnown.some((k) => assetType.includes(k))
+  }
+  const keywords = TYPE_KEYWORDS[typeValue] || [typeValue]
+  return keywords.some((k) => assetType.includes(k))
+}
 /* =========================================================
    REQUEST STATUS CONFIG
 ========================================================= */
@@ -478,7 +502,7 @@ export default function AssetTakeHomeRequest() {
   /* Toggle a type on/off (multi-select) instead of switching to a single type.
      When a type is removed, any selected assets that only matched that
      type are dropped from the selection so the list stays consistent. */
-  const handleTypeToggle = (type: string) => {
+    const handleTypeToggle = (type: string) => {
     setForm((prev) => {
       const isActive = prev.asset_types.includes(type)
       const nextTypes = isActive
@@ -487,12 +511,7 @@ export default function AssetTakeHomeRequest() {
 
       const stillMatches = (a: any) => {
         if (nextTypes.length === 0) return false
-        const assetType = (a.type || a.category || '').toLowerCase()
-        return nextTypes.some((t) =>
-          t === 'other'
-            ? !['laptop', 'mobile', 'tablet', 'monitor'].includes(assetType)
-            : assetType.includes(t)
-        )
+        return nextTypes.some((t) => assetMatchesType(a, t))
       }
 
       const nextAssetIds = prev.asset_ids.filter((id) => {
@@ -522,16 +541,10 @@ export default function AssetTakeHomeRequest() {
 
   /* Figure out which selected type an asset belongs to, for the
      per-request asset_type field the backend expects. */
-  const resolveAssetType = (asset: any): string => {
-    const assetType = (asset.type || asset.category || '').toLowerCase()
-    const match = form.asset_types.find((t) =>
-      t === 'other'
-        ? !['laptop', 'mobile', 'tablet', 'monitor'].includes(assetType)
-        : assetType.includes(t)
-    )
+    const resolveAssetType = (asset: any): string => {
+    const match = form.asset_types.find((t) => assetMatchesType(asset, t))
     return match || 'other'
   }
-
   /* =========================================================
      VALIDATION
   ========================================================= */
@@ -550,15 +563,10 @@ export default function AssetTakeHomeRequest() {
      FILTERED ASSETS — matches ANY of the selected types
   ========================================================= */
 
-  const filteredAssets = myAssets
+    const filteredAssets = myAssets
     .filter((a: any) => {
       if (form.asset_types.length === 0) return false
-      const type = (a.type || a.category || '').toLowerCase()
-      return form.asset_types.some((t) =>
-        t === 'other'
-          ? !['laptop', 'mobile', 'tablet', 'monitor'].includes(type)
-          : type.includes(t)
-      )
+      return form.asset_types.some((t) => assetMatchesType(a, t))
     })
     .filter((a: any) =>
       `${a.asset_code || ''} ${a.name || ''} ${a.model || ''}`
