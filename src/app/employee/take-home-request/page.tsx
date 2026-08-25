@@ -174,11 +174,36 @@ function fmtDate(d?: string) {
   return new Date(d).toLocaleDateString('en-GB')
 }
 
+/* =========================================================
+   PHONE VALIDATION
+   Plain 10 digit mobile number only. No country code, spaces,
+   or symbols allowed.
+========================================================= */
+
+const PHONE_ALLOWED_CHARS = /^[0-9]*$/
+
+function isValidPhone(raw: string): boolean {
+  const value = raw.trim()
+  if (!value) return false
+  if (!PHONE_ALLOWED_CHARS.test(value)) return false
+  return value.length === 10
+}
+
 function getAssetLabel(req: any) {
   if (typeof req.asset_id === 'object' && req.asset_id) {
     return [req.asset_id.asset_code, req.asset_id.name].filter(Boolean).join(' — ')
   }
   return req.asset_type || 'Asset'
+}
+
+/* Some backend responses don't reliably return the is_permanent flag,
+   so as a safety net we also treat a to_date of 2099 (the sentinel
+   value we send for permanent handovers) as permanent. */
+function isPermanentRequest(req: any): boolean {
+  if (req?.is_permanent === true) return true
+  if (!req?.to_date) return false
+  const year = new Date(req.to_date).getFullYear()
+  return year >= 2099
 }
 
 /* =========================================================
@@ -280,7 +305,7 @@ function MyRequestsSection() {
           {requests.map((req) => {
             const isOpen = expandedIds.has(req._id)
             const step = STATUS_STEP[req.status] ?? 0
-            const isPermanent = req.is_permanent === true
+            const isPermanent = isPermanentRequest(req)
 
             return (
               <div key={req._id} style={{ borderBottom: '1px solid var(--border-mid)' }}>
@@ -338,14 +363,54 @@ function MyRequestsSection() {
                 {isOpen && (
                   <div style={{ padding: '0 1.2rem 1rem', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {step > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0.5rem 0' }}>
-                        {['Submitted', 'Manager Approval', 'IT Approval', isPermanent ? 'Permanent' : 'Returned'].map((label, idx) => {
-                          const stepNum = idx + 1
-                          const reached = step >= stepNum || (stepNum === 1)
-                          const isCurrent = step === stepNum
-                          return (
-                            <div key={label} style={{ display: 'flex', alignItems: 'center', flex: idx < 3 ? 1 : 0 }}>
+                      <div
+                        style={{
+                          position: 'relative',
+                          padding: '0.6rem 11px 0.5rem',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        {/* background track — inset by the circle radius (11px) on each side */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(0.6rem + 11px)',
+                            left: 11,
+                            right: 11,
+                            height: 2,
+                            background: 'var(--border)',
+                            zIndex: 0,
+                          }}
+                        />
+                        {/* filled portion of the track, based on progress */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(0.6rem + 11px)',
+                            left: 11,
+                            width: `calc((100% - 22px) * ${Math.max(0, Math.min(step - 1, 3)) / 3})`,
+                            height: 2,
+                            background: STATUS_COLOR[req.status],
+                            zIndex: 1,
+                          }}
+                        />
+
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            position: 'relative',
+                            zIndex: 2,
+                          }}
+                        >
+                          {['Submitted', 'Manager Approval', 'IT Approval', isPermanent ? 'Permanent' : 'Returned'].map((label, idx) => {
+                            const stepNum = idx + 1
+                            const reached = step >= stepNum || stepNum === 1
+                            const isCurrent = step === stepNum
+                            return (
                               <div
+                                key={label}
                                 style={{
                                   width: 22,
                                   height: 22,
@@ -364,19 +429,9 @@ function MyRequestsSection() {
                               >
                                 {stepNum}
                               </div>
-                              {idx < 3 && (
-                                <div
-                                  style={{
-                                    flex: 1,
-                                    height: 2,
-                                    background: step > stepNum ? STATUS_COLOR[req.status] : 'var(--border)',
-                                    margin: '0 4px',
-                                  }}
-                                />
-                              )}
-                            </div>
-                          )
-                        })}
+                            )
+                          })}
+                        </div>
                       </div>
                     )}
 
@@ -446,6 +501,8 @@ function MyRequestsSection() {
 
 export default function AssetTakeHomeRequest() {
   const router = useRouter()
+
+  const today = new Date().toISOString().split('T')[0]
 
   /* USER */
   const [user, setUser] = useState<any>(null)
@@ -564,6 +621,23 @@ export default function AssetTakeHomeRequest() {
     setErrorMsg('')
   }
 
+  /* Toggle permanent take-home. When turning permanent ON, the date
+     fields are hidden from the UI entirely — we just stamp from_date
+     with today's date automatically so the backend still gets a valid
+     handover date, and clear any manually-entered return date. */
+  const handlePermanentToggle = () => {
+    setForm((prev) => {
+      const nextPermanent = !prev.is_permanent
+      return {
+        ...prev,
+        is_permanent: nextPermanent,
+        from_date: nextPermanent ? today : prev.from_date,
+        to_date: nextPermanent ? '' : prev.to_date,
+      }
+    })
+    setErrorMsg('')
+  }
+
   /* Figure out which selected type an asset belongs to, for the
      per-request asset_type field the backend expects. */
   const resolveAssetType = (asset: any): string => {
@@ -578,13 +652,13 @@ export default function AssetTakeHomeRequest() {
   const typeSelected = form.asset_types.length > 0
   const assetSelected = form.asset_ids.length > 0
   const reasonValid = form.reason.trim().length > 0
-  const fromValid = !!form.from_date
+  const fromValid = form.is_permanent ? true : !!form.from_date
   const toValid = form.is_permanent ? true : !!form.to_date
   const datesValid =
     fromValid && toValid && !form.is_permanent
       ? new Date(form.from_date) <= new Date(form.to_date)
       : true
-  const phoneValid = form.emergency_phone.trim().length >= 8
+  const phoneValid = isValidPhone(form.emergency_phone)
   const ackChecked = form.acknowledgement
 
   /* =========================================================
@@ -634,7 +708,7 @@ export default function AssetTakeHomeRequest() {
       return
     }
 
-    if (!fromValid) {
+    if (!form.is_permanent && !fromValid) {
       setErrorMsg('Please select the handover date.')
       setTouched((prev) => ({ ...prev, from_date: true }))
       setLoading(false)
@@ -655,7 +729,7 @@ export default function AssetTakeHomeRequest() {
     }
 
     if (!phoneValid) {
-      setErrorMsg('Please provide a valid emergency contact number.')
+      setErrorMsg('Please enter a valid 10 digit mobile number.')
       setTouched((prev) => ({ ...prev, emergency_phone: true }))
       setLoading(false)
       return
@@ -668,16 +742,16 @@ export default function AssetTakeHomeRequest() {
     }
 
     try {
-      
+
       const baseFields = {
         reason: form.reason.trim(),
-        from_date: form.from_date,
+        from_date: form.is_permanent ? today : form.from_date,
         to_date: form.is_permanent ? '2099-12-31' : form.to_date,
         is_permanent: form.is_permanent,
         emergency_contact: form.emergency_contact.trim() || user?.name,
         emergency_phone: form.emergency_phone.trim(),
       }
-      
+
       const results = await Promise.allSettled(
         form.asset_ids.map((asset_id) => {
           const asset = myAssets.find((a: any) => (a._id || a.id) === asset_id)
@@ -731,8 +805,6 @@ export default function AssetTakeHomeRequest() {
   ========================================================= */
 
   if (!ready) return null
-
-  const today = new Date().toISOString().split('T')[0]
 
   return (
     <AppLayout role="employee">
@@ -1011,7 +1083,7 @@ export default function AssetTakeHomeRequest() {
             >
               <button
                 type="button"
-                onClick={() => updateForm({ is_permanent: !form.is_permanent })}
+                onClick={handlePermanentToggle}
                 style={{
                   width: 20,
                   height: 20,
@@ -1048,55 +1120,54 @@ export default function AssetTakeHomeRequest() {
                   Permanent Take-Home
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Check this if you are taking this asset permanently (no return date required). 
-                  You must still select a handover date below.
+                  Check this if you are taking this asset permanently. No handover or return date
+                  is needed — today's date will be recorded automatically.
                 </div>
               </div>
             </div>
 
-            {/* DURATION */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: form.is_permanent ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '1rem',
-              }}
-            >
-              <FG
-                label={form.is_permanent ? 'Permanent Handover Date *' : 'From Date *'}
-                error={
-                  touched.from_date && !fromValid
-                    ? 'Required'
-                    : touched.from_date && touched.to_date && !datesValid
-                      ? 'Invalid date range'
-                      : undefined
-                }
-                hint={form.is_permanent ? 'The date from which this asset becomes permanently assigned to you.' : undefined}
+            {/* DURATION — hidden entirely for permanent take-home requests */}
+            {!form.is_permanent && (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '1rem',
+                }}
               >
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="date"
-                    min={today}
-                    value={form.from_date}
-                    onChange={(e) => updateForm({ from_date: e.target.value })}
-                    onBlur={() => setTouched((prev) => ({ ...prev, from_date: true }))}
-                    style={inp}
-                  />
-                  <Calendar
-                    size={14}
-                    color="var(--text-muted)"
-                    style={{
-                      position: 'absolute',
-                      right: 10,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      pointerEvents: 'none',
-                    }}
-                  />
-                </div>
-              </FG>
+                <FG
+                  label="From Date *"
+                  error={
+                    touched.from_date && !fromValid
+                      ? 'Required'
+                      : touched.from_date && touched.to_date && !datesValid
+                        ? 'Invalid date range'
+                        : undefined
+                  }
+                >
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="date"
+                      min={today}
+                      value={form.from_date}
+                      onChange={(e) => updateForm({ from_date: e.target.value })}
+                      onBlur={() => setTouched((prev) => ({ ...prev, from_date: true }))}
+                      style={inp}
+                    />
+                    <Calendar
+                      size={14}
+                      color="var(--text-muted)"
+                      style={{
+                        position: 'absolute',
+                        right: 10,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </div>
+                </FG>
 
-              {!form.is_permanent && (
                 <FG
                   label="Expected Return Date *"
                   error={
@@ -1129,8 +1200,8 @@ export default function AssetTakeHomeRequest() {
                     />
                   </div>
                 </FG>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* REASON — no minimum character requirement */}
             <FG
@@ -1197,8 +1268,15 @@ export default function AssetTakeHomeRequest() {
                 label="Emergency Phone *"
                 error={
                   touched.emergency_phone && !phoneValid
-                    ? 'Valid phone number required'
+                    ? form.emergency_phone.trim()
+                      ? 'Enter a valid 10 digit mobile number'
+                      : 'Emergency phone is required'
                     : undefined
+                }
+                hint={
+                  touched.emergency_phone && !phoneValid
+                    ? undefined
+                    : 'Enter 10 digit mobile number'
                 }
               >
                 <div style={{ position: 'relative' }}>
@@ -1210,9 +1288,14 @@ export default function AssetTakeHomeRequest() {
                   <input
                     type="tel"
                     value={form.emergency_phone}
-                    onChange={(e) => updateForm({ emergency_phone: e.target.value })}
+                    onChange={(e) => {
+                      // Only allow characters valid in a phone number (digits, +, -, spaces, parens)
+                      const filtered = e.target.value.replace(/[^0-9]/g, '').slice(0, 10)
+                      updateForm({ emergency_phone: filtered })
+                    }}
                     onBlur={() => setTouched((prev) => ({ ...prev, emergency_phone: true }))}
                     placeholder="Reachable phone number"
+                    maxLength={10}
                     style={{ ...inp, paddingLeft: 32 }}
                   />
                 </div>
