@@ -108,7 +108,7 @@ export default function EmployeeNotifications() {
           ) : (
             notifs.map((n: any, index: number) => (
               <div
-                key={n.id || index} // ✅ safe key
+                key={n._id || index} // ✅ safe key
                 style={{
                   display: 'flex',
                   gap: 14,
@@ -152,9 +152,9 @@ export default function EmployeeNotifications() {
                       </Link>
                     )}
 
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                      {n.created_at
-                        ? new Date(n.created_at).toLocaleString()
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {n.createdAt
+                        ? new Date(n.createdAt).toLocaleString()
                         : 'No date'}
                     </span>
                   </div>

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Moon, Sun, Menu, X, LayoutDashboard, Ticket, Monitor, Users, BarChart3, Bell, UserCircle, Plus, LogOut, Tv, Star, Home } from 'lucide-react'
@@ -23,6 +23,8 @@ export default function AppLayout({ children, role }: LayoutProps) {
   const [user, setUser] = useState<any>(null)
   const [notifCount, setNotifCount] = useState(0)
   const [takeHomeCount, setTakeHomeCount] = useState(0)
+  const seenNotifIds = useRef<Set<string>>(new Set())
+  const firstFetchDone = useRef(false)
   const [dark, setDark] = useState(false)
   const [sideOpen, setSideOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -75,9 +77,15 @@ export default function AppLayout({ children, role }: LayoutProps) {
     setDark(savedDark)
     if (savedDark) document.documentElement.classList.add('dark')
     
+    // ask browser notification permission
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+
     fetchNotifs()
     const interval = setInterval(fetchNotifs, 15000)
     return () => clearInterval(interval)
+
   }, [router, role, mounted])
 
   useEffect(() => {
@@ -90,22 +98,53 @@ export default function AppLayout({ children, role }: LayoutProps) {
   }, [showEdit])
 
   const fetchNotifs = async () => {
-  try {
-    const { data } = await api.get('/notifications')
+    try {
+      const { data } = await api.get('/notifications')
 
-    setNotifCount(data?.unread_count || 0)
+      setNotifCount(data?.unread_count || 0)
 
-    if (role === 'admin') {
-      const { data: takeHomeData } = await api.get(
-        '/assets/take-home-requests/pending-count'
-      )
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.notifications)
+        ? data.notifications
+        : []
 
-      setTakeHomeCount(takeHomeData?.count || 0)
+      if (!firstFetchDone.current) {
+        // first load — just remember existing IDs, don't popup for old ones
+        list.forEach((n: any) => seenNotifIds.current.add(n._id))
+        firstFetchDone.current = true
+      } else {
+        // find notifications not seen before
+        const newOnes = list.filter((n: any) => !seenNotifIds.current.has(n._id))
+
+        if (newOnes.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+          newOnes.forEach((n: any) => {
+            const notif = new Notification('New Ticket Notification', {
+              body: n.message,
+              icon: '/favicon.ico',
+            })
+            notif.onclick = () => {
+              window.focus()
+              notif.close()
+            }
+            seenNotifIds.current.add(n._id)
+          })
+        } else {
+          // even if permission not granted, still mark them seen so we don't re-check forever
+          newOnes.forEach((n: any) => seenNotifIds.current.add(n._id))
+        }
+      }
+
+      if (role === 'admin') {
+        const { data: takeHomeData } = await api.get(
+          '/assets/take-home-requests/pending-count'
+        )
+        setTakeHomeCount(takeHomeData?.count || 0)
+      }
+    } catch (error) {
+      console.error('Notification count error:', error)
     }
-  } catch (error) {
-    console.error('Notification count error:', error)
   }
-}
 
   const toggleDark = () => {
     if (typeof window === 'undefined') return;

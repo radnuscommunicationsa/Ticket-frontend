@@ -16,27 +16,65 @@ export default function AdminNotifications() {
   const [notifs, setNotifs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    api.get('/notifications')
-      .then((res) => {
-        const data = res.data
-        // handle both { notifications: [] } and plain []
-        const list = Array.isArray(data)
-          ? data
-          : Array.isArray(data.notifications)
-          ? data.notifications
-          : []
-        setNotifs(list)
-      })
-      .catch((err) => {
-        console.error('Notifications error:', err)
-        setNotifs([])
-      })
-      .finally(() => {
-        setLoading(false)
-        // mark as read after fetching
-        api.patch('/notifications/read').catch(() => {})
-      })
+    useEffect(() => {
+    // ask browser permission once, on first load
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission()
+      }
+    }
+
+    const fetchNotifs = (isFirstLoad: boolean) => {
+      api.get('/notifications')
+        .then((res) => {
+          const data = res.data
+          const list = Array.isArray(data)
+            ? data
+            : Array.isArray(data.notifications)
+            ? data.notifications
+            : []
+
+          // find notifications that are new since the last fetch (skip on first load)
+          if (!isFirstLoad) {
+            setNotifs((prevList) => {
+              const prevIds = new Set(prevList.map((n: any) => n._id))
+              const newOnes = list.filter((n: any) => !prevIds.has(n._id))
+
+              // fire a browser popup for each new ticket notification
+              if (newOnes.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+                newOnes.forEach((n: any) => {
+                  const notif = new Notification('New Ticket Notification', {
+                    body: n.message,
+                    icon: '/favicon.ico', // change to your logo path if you have one
+                  })
+                  notif.onclick = () => {
+                    window.focus()
+                    notif.close()
+                  }
+                })
+              }
+
+              return list
+            })
+          } else {
+            setNotifs(list)
+          }
+        })
+        .catch((err) => {
+          console.error('Notifications error:', err)
+          if (isFirstLoad) setNotifs([])
+        })
+        .finally(() => {
+          if (isFirstLoad) setLoading(false)
+          api.patch('/notifications/read').catch(() => {})
+        })
+    }
+
+    fetchNotifs(true) // initial load, no popups
+
+    const interval = setInterval(() => fetchNotifs(false), 15000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const clearAll = async () => {

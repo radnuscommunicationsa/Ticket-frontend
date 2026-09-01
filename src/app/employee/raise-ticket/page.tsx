@@ -487,8 +487,13 @@ export default function RaiseTicket() {
 
         payload.append('attachment', file)
 
-        // FIX: Don't set Content-Type manually — axios handles multipart boundary
-        // config.headers removed
+        /* Remove default JSON Content-Type so browser sets multipart boundary */
+        config = {
+          transformRequest: [(data: any, headers: any) => {
+            delete headers['Content-Type']
+            return data
+          }]
+        }
       }
 
       /* WITHOUT ATTACHMENT */

@@ -157,8 +157,13 @@ export default function TicketDetail() {
             </div>
             <div style={{ padding: '0.9rem 1rem' }}>
               {isImg ? (
-                <img src={attUrl!} alt="attachment" style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 6 }} />
-              ) : (
+  <img
+    src={attUrl!}
+    alt="attachment"
+    onClick={() => window.open(attUrl!, '_blank')}
+    style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 6, cursor: 'zoom-in' }}
+  />
+) : (
                 <a href={attUrl!} target="_blank" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--red-primary)', fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none' }}>
                   <Download size={14}/> Download File
                 </a>
