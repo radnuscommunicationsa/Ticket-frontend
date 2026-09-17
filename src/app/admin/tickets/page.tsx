@@ -59,6 +59,7 @@ function AdminTicketsContent() {
 
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
+  const [monthFilter, setMonthFilter] = useState<string>('all')
 
   /* =========================================================
      SYNC FILTERS FROM URL
@@ -67,9 +68,11 @@ function AdminTicketsContent() {
   useEffect(() => {
     const status = searchParams.get('status') || 'all'
     const priority = searchParams.get('priority') || 'all'
+    const month = searchParams.get('month') || 'all'
 
     setStatusFilter(status)
     setPriorityFilter(priority)
+    setMonthFilter(month)
   }, [searchParams])
 
   /* =========================================================
@@ -117,7 +120,7 @@ function AdminTicketsContent() {
 
   useEffect(() => {
     setSelected([])
-  }, [statusFilter, priorityFilter])
+  }, [statusFilter, priorityFilter, monthFilter])
 
   /* =========================================================
      REFRESH
@@ -195,6 +198,54 @@ function AdminTicketsContent() {
   }
 
   /* =========================================================
+     MONTH OPTIONS (for filter dropdown)
+     ========================================================= */
+
+  const monthMap: Record<string, number> = {}
+
+  tickets.forEach((ticket: any) => {
+    const dateVal = ticket?.created_at || ticket?.createdAt
+    if (!dateVal) return
+
+    const date = new Date(dateVal)
+    if (Number.isNaN(date.getTime())) return
+
+    const key = `${date.getFullYear()}-${String(
+      date.getMonth() + 1
+    ).padStart(2, '0')}`
+
+    monthMap[key] = (monthMap[key] || 0) + 1
+  })
+
+  const monthOptions: { key: string; label: string; count: number }[] =
+    Object.keys(monthMap)
+      .sort()
+      .reverse()
+      .map((key) => {
+        const [year, month] = key.split('-')
+
+        const label = new Date(
+          Number(year),
+          Number(month) - 1
+        ).toLocaleString('default', {
+          month: 'short',
+          year: 'numeric',
+        })
+
+        return { key, label, count: monthMap[key] }
+      })
+
+  const getTicketMonthKey = (ticket: any): string | null => {
+    const dateVal = ticket?.created_at || ticket?.createdAt
+    if (!dateVal) return null
+
+    const date = new Date(dateVal)
+    if (Number.isNaN(date.getTime())) return null
+
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+  }
+
+  /* =========================================================
      FILTER TICKETS
      ========================================================= */
 
@@ -207,7 +258,11 @@ function AdminTicketsContent() {
       priorityFilter === 'all' ||
       ticket?.priority === priorityFilter
 
-    return statusOk && priorityOk
+    const monthOk =
+      monthFilter === 'all' ||
+      getTicketMonthKey(ticket) === monthFilter
+
+    return statusOk && priorityOk && monthOk
   })
 
   /* =========================================================
@@ -356,6 +411,30 @@ function AdminTicketsContent() {
   }
 
   /* =========================================================
+     MONTH FILTER CHANGE
+     ========================================================= */
+
+  const handleMonthChange = (value: string) => {
+    setMonthFilter(value)
+
+    const params = new URLSearchParams(
+      searchParams.toString()
+    )
+
+    if (value === 'all') {
+      params.delete('month')
+    } else {
+      params.set('month', value)
+    }
+
+    const query = params.toString()
+
+    router.push(
+      `/admin/tickets${query ? `?${query}` : ''}`
+    )
+  }
+
+  /* =========================================================
      STATUS COUNTS
      ========================================================= */
 
@@ -438,6 +517,11 @@ function AdminTicketsContent() {
       selected.includes(getTicketId(ticket))
     )
 
+  const anyFilterActive =
+    statusFilter !== 'all' ||
+    priorityFilter !== 'all' ||
+    monthFilter !== 'all'
+
   /* =========================================================
      RENDER
      ========================================================= */
@@ -498,8 +582,7 @@ function AdminTicketsContent() {
           >
             Total Tickets (
             {filteredTickets.length}
-            {statusFilter !== 'all' ||
-            priorityFilter !== 'all'
+            {anyFilterActive
               ? ` of ${tickets.length}`
               : ''}
             )
@@ -610,6 +693,44 @@ function AdminTicketsContent() {
                   0}
                 )
               </option>
+            </select>
+
+            {/* MONTH FILTER */}
+
+            <select
+              value={monthFilter}
+              onChange={(e) =>
+                handleMonthChange(
+                  e.target.value
+                )
+              }
+              style={{
+                padding: '6px 10px',
+                background:
+                  'var(--bg-card)',
+                color:
+                  'var(--text-sub)',
+                border:
+                  '1px solid var(--border)',
+                borderRadius: 5,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <option value="all">
+                All Months (
+                {tickets.length})
+              </option>
+
+              {monthOptions.map((m) => (
+                <option
+                  key={m.key}
+                  value={m.key}
+                >
+                  {m.label} ({m.count})
+                </option>
+              ))}
             </select>
 
             {/* BULK DELETE */}
@@ -807,10 +928,7 @@ function AdminTicketsContent() {
                         'var(--text-muted)',
                     }}
                   >
-                    {statusFilter ===
-                      'all' &&
-                    priorityFilter ===
-                      'all'
+                    {!anyFilterActive
                       ? 'No tickets found.'
                       : 'No tickets found for the selected filter.'}
                   </td>
