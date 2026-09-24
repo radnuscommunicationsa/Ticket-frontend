@@ -10,10 +10,12 @@ import {
   CheckCircle2, XCircle, AlertCircle, User, Hash, Shield, 
   FileText, RotateCcw, Activity, StickyNote, KeyRound, Ban, 
   Send, ChevronRight, Briefcase, HeartPulse, TrendingUp, Archive,
-  Users, UserCheck, UserX
+  Users, UserCheck, UserX, Plus, ChevronDown
 } from 'lucide-react'
 
 const DEPTS = ['Loan','Customer Support','General Manager','Accounts','Faculty','Web Development','Digital Marketing','Sales','Design','Admission','HR','Telecalling','Stock','Distribution','Technical Service Engineer','Android Development','System Administrator','Software Support']
+
+const ASSET_TYPES = ['Laptop','Desktop','Monitor','Mobile','Accessory','Other']
 
 function avatarColor(n:string){
   const c=['#1565c0','#6a1b9a','#00695c','#c62828','#e65100','#2e7d32','#37474f','#4527a0']
@@ -58,14 +60,17 @@ function extractId(val: any): string {
 }
 
 function belongsToEmployee(item: any, empId: string, empCode: string): boolean {
+  if (!empId && !empCode) return false
+
   const itemEmpId = extractId(item.employee_id)
   const itemEmpCode = typeof item.employee_id === 'object' ? item.employee_id?.emp_id || item.employee_id?.empId : ''
   const itemAssignedTo = extractId(item.assigned_to || item.user_id || item.emp_id)
-  return (
-    itemEmpId === empId || itemEmpId === empCode ||
-    itemEmpCode === empCode || itemEmpCode === empId ||
-    itemAssignedTo === empId || itemAssignedTo === empCode
-  )
+
+  // Only compare real, non-empty identifiers — avoids '' === '' false positives
+  const candidates = [itemEmpId, itemEmpCode, itemAssignedTo].filter(Boolean)
+  if (candidates.length === 0) return false
+
+  return candidates.some(v => v === empId || v === empCode)
 }
 
 export default function AdminEmployees() {
@@ -76,6 +81,7 @@ export default function AdminEmployees() {
   const [showAdd, setShowAdd] = useState(false)
   const [editEmp, setEditEmp] = useState<any>(null)
   const [editAdmin, setEditAdmin] = useState<any>(null)
+  const [deptEmp, setDeptEmp] = useState<any>(null)
   const [search, setSearch] = useState('')
   const [refreshing, setRefreshing] = useState(false)
 
@@ -85,15 +91,18 @@ export default function AdminEmployees() {
   const [empTickets, setEmpTickets] = useState<any[]>([])
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [assetError, setAssetError] = useState<string | null>(null)
+
+  // ✅ Asset edit modal state
+  const [editAsset, setEditAsset] = useState<any>(null)
   
-  // ✅ NEW: Admin notes
+  // ✅ Admin notes
   const [adminNotes, setAdminNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
   
-  // ✅ NEW: Active tab in detail modal
+  // ✅ Active tab in detail modal
   const [detailTab, setDetailTab] = useState<'overview'|'assets'|'tickets'|'timeline'>('overview')
 
-  // ✅ NEW: Status filter state
+  // ✅ Status filter state
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
   const load = async () => {
@@ -133,29 +142,32 @@ export default function AdminEmployees() {
       })
       setEmpTickets(empTicketList)
 
-      let rawAssets: any[] = []
+            let rawAssets: any[] = []
       let source = ''
 
       try {
         const res = await api.get(`/assets/assigned?employee_id=${empId}`)
         const data = res.data?.assets ?? res.data ?? []
-        if (Array.isArray(data) && data.length > 0) { rawAssets = data; source = '/assets/assigned' }
+        const filtered = Array.isArray(data) ? data.filter((r: any) => belongsToEmployee(r, empId, empCode)) : []
+        if (filtered.length > 0) { rawAssets = filtered; source = '/assets/assigned' }
       } catch { /* ignore */ }
 
       if (rawAssets.length === 0) {
         try {
           const res = await api.get(`/assets?employee_id=${empId}`)
           const data = res.data?.assets ?? res.data ?? []
-          if (Array.isArray(data) && data.length > 0) { rawAssets = data; source = '/assets' }
+          const filtered = Array.isArray(data) ? data.filter((r: any) => belongsToEmployee(r, empId, empCode)) : []
+          if (filtered.length > 0) { rawAssets = filtered; source = '/assets' }
         } catch { /* ignore */ }
       }
 
+      // ⚠️ This endpoint returns ALL employees' requests — must filter client-side
       if (rawAssets.length === 0) {
         try {
           const res = await api.get('/assets/take-home-requests')
           const allRequests = Array.isArray(res.data) ? res.data : (res.data?.requests ?? [])
-          rawAssets = allRequests
-          source = '/assets/take-home-requests'
+          const filtered = allRequests.filter((r: any) => belongsToEmployee(r, empId, empCode))
+          if (filtered.length > 0) { rawAssets = filtered; source = '/assets/take-home-requests (client-filtered)' }
         } catch { /* ignore */ }
       }
 
@@ -163,7 +175,8 @@ export default function AdminEmployees() {
         try {
           const res = await api.get(`/employees/${empId}/assets`)
           const data = res.data?.assets ?? res.data ?? []
-          if (Array.isArray(data) && data.length > 0) { rawAssets = data; source = '/employees/:id/assets' }
+          const filtered = Array.isArray(data) ? data.filter((r: any) => belongsToEmployee(r, empId, empCode)) : []
+          if (filtered.length > 0) { rawAssets = filtered; source = '/employees/:id/assets' }
         } catch { /* ignore */ }
       }
 
@@ -184,9 +197,8 @@ export default function AdminEmployees() {
         returned_date: r.returned_date || (r.status === 'returned' ? r.updated_at : null)
       }))
 
-      // Split current vs history
+            // rawAssets is already filtered to this employee — just split by status now
       const current = mappedAssets.filter((a: any) => 
-        belongsToEmployee(rawAssets.find((raw: any) => raw._id === a._id) || {}, empId, empCode) &&
         a.status !== 'returned' && a.status !== 'rejected'
       )
       const history = mappedAssets.filter((a: any) => 
@@ -220,7 +232,7 @@ export default function AdminEmployees() {
     fetchEmployeeDetail(emp)
   }
 
-  // ✅ NEW: Save admin notes
+  // ✅ Save admin notes
   const handleSaveNotes = async () => {
     if (!detailEmp) return
     setSavingNotes(true)
@@ -234,7 +246,7 @@ export default function AdminEmployees() {
     }
   }
 
-  // ✅ NEW: Quick actions
+  // ✅ Quick actions
   const handleResetPassword = async () => {
     if (!detailEmp) return
     const newPass = prompt(`Enter new password for ${detailEmp.name}:`, '')
@@ -261,7 +273,13 @@ export default function AdminEmployees() {
     }
   }
 
-  // ✅ NEW: Build activity timeline
+  // ✅ Called after an asset is edited & saved — closes modal and reloads this employee's detail data
+  const handleAssetUpdated = async () => {
+    setEditAsset(null)
+    if (detailEmp) await fetchEmployeeDetail(detailEmp)
+  }
+
+  // ✅ Build activity timeline
   const timeline = useMemo(() => {
     const items: any[] = []
     
@@ -327,7 +345,7 @@ export default function AdminEmployees() {
     })
   }, [employees, allTickets])
 
-  // ✅ UPDATED: Filter by search AND status
+  // ✅ Filter by search AND status
   const filteredEmployees = employeesWithCounts.filter((e: any) => {
     const matchesSearch = 
       e.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -339,16 +357,17 @@ export default function AdminEmployees() {
     return matchesSearch && matchesStatus
   })
 
-  // ✅ NEW: Count stats for filter pills
+  // ✅ Count stats for filter pills
   const activeCount = employeesWithCounts.filter((e: any) => e.status === 'active').length
   const inactiveCount = employeesWithCounts.filter((e: any) => e.status === 'inactive').length
   const totalCount = employeesWithCounts.length
 
-  const handleDelete = async (id: string) => {
-    if(!confirm('Delete this employee and all their tickets?')) return
+  // ✅ FIXED: handles both employees and admins
+  const handleDelete = async (id: string, isAdmin = false) => {
+    if(!confirm(`Delete this ${isAdmin ? 'admin' : 'employee'}${isAdmin ? '' : ' and all their tickets'}?`)) return
     try {
       await api.delete(`/employees/${id}`)
-      setMsg({type:'success', text:'Employee deleted.'})
+      setMsg({type:'success', text:`${isAdmin ? 'Admin' : 'Employee'} deleted.`})
       load()
     } catch(e: any) {
       setMsg({type:'error', text: e.response?.data?.error || 'Delete failed'})
@@ -389,11 +408,20 @@ export default function AdminEmployees() {
         </div>
         <FG label="Password *"><input required type="password" style={inp} value={d.password} onChange={e=>setD({...d,password:e.target.value})} placeholder="Set initial password"/></FG>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-          <FG label="Department">
-            <select style={inp} value={d.department} onChange={e=>setD({...d,department:e.target.value})}>
-              <option value="">— Select —</option>
-              {DEPTS.map(dept => <option key={dept}>{dept}</option>)}
-            </select>
+          <FG label="Department (type or pick)">
+            <input
+              list="dept-options"
+              style={inp}
+              value={d.department}
+              onChange={e=>setD({...d,department:e.target.value})}
+              placeholder="Type a new department or pick from list"
+            />
+            <datalist id="dept-options">
+              {DEPTS.map(dept => <option key={dept} value={dept}/>)}
+            </datalist>
+            <span style={{fontSize:'0.68rem',color:'var(--text-muted)',marginTop:3}}>
+              You can type any department name — not limited to the list.
+            </span>
           </FG>
           <FG label="Role">
             <select style={inp} value={d.role} onChange={e=>setD({...d,role:e.target.value})}>
@@ -443,11 +471,20 @@ export default function AdminEmployees() {
           <FG label={isAdmin?'Admin ID *':'Employee ID *'}><input required style={inp} value={d.emp_id} onChange={e=>setD({...d,emp_id:e.target.value})}/></FG>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-          <FG label="Department">
-            <select style={inp} value={d.department} onChange={e=>setD({...d,department:e.target.value})}>
-              <option value="">— Select —</option>
-              {DEPTS.map(dept => <option key={dept}>{dept}</option>)}
-            </select>
+          <FG label="Department (type or pick)">
+            <input
+              list="dept-options"
+              style={inp}
+              value={d.department}
+              onChange={e=>setD({...d,department:e.target.value})}
+              placeholder="Type a new department or pick from list"
+            />
+            <datalist id="dept-options">
+              {DEPTS.map(dept => <option key={dept} value={dept}/>)}
+            </datalist>
+            <span style={{fontSize:'0.68rem',color:'var(--text-muted)',marginTop:3}}>
+              You can type any department name — not limited to the list.
+            </span>
           </FG>
           <FG label="Status">
             <select style={inp} value={d.status} onChange={e=>setD({...d,status:e.target.value})}>
@@ -462,6 +499,262 @@ export default function AdminEmployees() {
           <button type="button" onClick={()=>{setEditEmp(null);setEditAdmin(null)}} style={{padding:'8px 18px',borderRadius:5,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
           <button type="submit" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 18px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>
             <Save size={14}/> Save Changes
+          </button>
+        </div>
+      </form>
+    )
+  }
+
+  /* =========================================================
+     SEPARATE DEPARTMENT EDITOR
+  ========================================================= */
+  const DeptEditForm = ({emp}: {emp:any}) => {
+    const [deptOther, setDeptOther] = useState(!!(emp.department && !DEPTS.includes(emp.department)))
+    const [val, setVal] = useState(emp.department || '')
+    const [saving, setSaving] = useState(false)
+    const [dropdownOpen, setDropdownOpen] = useState(false)
+
+    const submit = async (e:React.FormEvent) => {
+      e.preventDefault()
+      try {
+        setSaving(true)
+        await api.patch(`/employees/${emp._id||emp.id}`, { department: val })
+        setMsg({type:'success', text:`Department updated for ${emp.name}`})
+        setDeptEmp(null)
+        load()
+      } catch(err:any) {
+        setMsg({type:'error', text: err.response?.data?.error || 'Failed'})
+      } finally {
+        setSaving(false)
+      }
+    }
+
+    const selectDept = (dept: string) => {
+      setDeptOther(false)
+      setVal(dept)
+      setDropdownOpen(false)
+    }
+
+    const selectOther = () => {
+      setDeptOther(true)
+      setVal('')
+      setDropdownOpen(false)
+    }
+
+    return (
+      <form onSubmit={submit}>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:'1rem',padding:'0.7rem 0.9rem',borderRadius:8,background:'rgba(198,40,40,0.04)',border:'1px solid var(--border)'}}>
+          <div style={{width:32,height:32,borderRadius:'50%',background:avatarColor(emp.name||'A'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem',fontWeight:700,color:'#fff'}}>{initials(emp.name)}</div>
+          <div>
+            <div style={{fontSize:'0.85rem',fontWeight:600,color:'var(--text-main)'}}>{emp.name}</div>
+            <div style={{fontSize:'0.7rem',color:'var(--text-muted)'}}>{emp.emp_id} · Current: {emp.department || '—'}</div>
+          </div>
+        </div>
+
+        <FG label="New Department">
+          <div style={{position:'relative'}}>
+            <button
+              type="button"
+              onClick={() => setDropdownOpen(o => !o)}
+              style={{...inp, display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer', textAlign:'left'}}
+            >
+              <span>{deptOther ? (val || 'Type new department name') : (val || '— Select —')}</span>
+              <ChevronDown size={14} style={{transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition:'transform 0.15s', color:'var(--text-muted)', flexShrink:0}} />
+            </button>
+
+            {dropdownOpen && (
+              <div style={{
+                position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:10,
+                maxHeight:220, overflowY:'auto', borderRadius:6,
+                border:'1px solid var(--border)', background:'var(--bg-card)',
+                boxShadow:'0 4px 14px rgba(0,0,0,0.12)'
+              }}>
+                {DEPTS.map(dept => (
+                  <div
+                    key={dept}
+                    onClick={() => selectDept(dept)}
+                    style={{
+                      padding:'8px 12px', fontSize:'0.82rem', cursor:'pointer',
+                      color:'var(--text-main)',
+                      background: (!deptOther && val === dept) ? 'rgba(198,40,40,0.08)' : 'transparent'
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(198,40,40,0.06)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = (!deptOther && val === dept) ? 'rgba(198,40,40,0.08)' : 'transparent')}
+                  >
+                    {dept}
+                  </div>
+                ))}
+                <div
+                  onClick={selectOther}
+                  style={{
+                    display:'flex', alignItems:'center', gap:6,
+                    padding:'8px 12px', fontSize:'0.82rem', cursor:'pointer',
+                    color:'var(--red-primary)', fontWeight:600,
+                    borderTop:'1px solid var(--border)',
+                    background: deptOther ? 'rgba(198,40,40,0.08)' : 'transparent'
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(198,40,40,0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = deptOther ? 'rgba(198,40,40,0.08)' : 'transparent')}
+                >
+                  <Plus size={13} /> Other (type new)
+                </div>
+              </div>
+            )}
+          </div>
+
+          {deptOther && (
+            <input
+              style={{...inp,marginTop:6}}
+              value={val}
+              onChange={e=>setVal(e.target.value)}
+              placeholder="Type new department name"
+              autoFocus
+            />
+          )}
+        </FG>
+
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:'0.5rem'}}>
+          <button type="button" onClick={()=>setDeptEmp(null)} style={{padding:'8px 18px',borderRadius:5,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
+          <button type="submit" disabled={saving} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 18px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:saving?'not-allowed':'pointer',fontSize:'0.8rem',fontWeight:600}}>
+            <Save size={14}/> {saving ? 'Saving...' : 'Save Department'}
+          </button>
+        </div>
+      </form>
+    )
+  }
+
+  /* =========================================================
+     ✅ NEW: ASSET EDITOR
+     Edits an individual asset record (assignment) belonging
+     to the employee currently open in the detail modal.
+     Adjust the PATCH endpoint below to match your backend.
+  ========================================================= */
+  const AssetEditForm = ({ asset, onSaved }: { asset: any, onSaved: () => void }) => {
+    const [d, setD] = useState({
+      name: asset.name || '',
+      asset_code: asset.asset_code || '',
+      model: asset.model || '',
+      asset_type: asset.asset_type || '',
+      status: asset.status || 'assigned',
+      assigned_date: asset.assigned_date ? String(asset.assigned_date).slice(0,10) : '',
+      to_date: asset.to_date ? String(asset.to_date).slice(0,10) : '',
+      is_permanent: !!asset.is_permanent,
+      reason: asset.reason || '',
+      notes: asset.notes || '',
+      emergency_contact: asset.emergency_contact || '',
+      emergency_phone: asset.emergency_phone || ''
+    })
+    const [saving, setSaving] = useState(false)
+
+    const submit = async (e: React.FormEvent) => {
+      e.preventDefault()
+      setSaving(true)
+      try {
+        // ⚠️ Adjust this endpoint to match your backend's asset-update route
+        await api.patch(`/assets/${asset._id}`, d)
+        setMsg({ type: 'success', text: 'Asset updated.' })
+        onSaved()
+      } catch (err: any) {
+        setMsg({ type: 'error', text: err.response?.data?.error || 'Failed to update asset' })
+      } finally {
+        setSaving(false)
+      }
+    }
+
+    return (
+      <form onSubmit={submit}>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:'1rem',padding:'0.7rem 0.9rem',borderRadius:8,background:'rgba(21,101,192,0.05)',border:'1px solid var(--border)'}}>
+          <div style={{width:32,height:32,borderRadius:8,background:'rgba(21,101,192,0.1)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <Laptop size={16} color="#1565c0" />
+          </div>
+          <div>
+            <div style={{fontSize:'0.85rem',fontWeight:600,color:'var(--text-main)'}}>{asset.asset_code || asset.name || 'Asset'}</div>
+            <div style={{fontSize:'0.7rem',color:'var(--text-muted)'}}>Editing assignment record</div>
+          </div>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+          <FG label="Asset Code"><input style={inp} value={d.asset_code} onChange={e=>setD({...d,asset_code:e.target.value})} placeholder="e.g. AST-0045"/></FG>
+          <FG label="Name"><input style={inp} value={d.name} onChange={e=>setD({...d,name:e.target.value})} placeholder="e.g. Dell Latitude 5420"/></FG>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+          <FG label="Model"><input style={inp} value={d.model} onChange={e=>setD({...d,model:e.target.value})}/></FG>
+          <FG label="Type (type or pick)">
+            <input
+              list="asset-type-options"
+              style={inp}
+              value={d.asset_type}
+              onChange={e=>setD({...d,asset_type:e.target.value})}
+              placeholder="Type a new type or pick from list"
+            />
+            <datalist id="asset-type-options">
+              {ASSET_TYPES.map(t => <option key={t} value={t}/>)}
+            </datalist>
+          </FG>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+          <FG label="Status">
+            <select style={inp} value={d.status} onChange={e=>setD({...d,status:e.target.value})}>
+              <option value="assigned">Assigned</option>
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="approved_by_manager">Approved by Manager</option>
+              <option value="rejected">Rejected</option>
+              <option value="returned">Returned</option>
+            </select>
+          </FG>
+          <FG label="Permanent?">
+            <select
+              style={inp}
+              value={d.is_permanent ? 'yes' : 'no'}
+              onChange={e=>setD({...d, is_permanent: e.target.value === 'yes'})}
+            >
+              <option value="no">No — has return date</option>
+              <option value="yes">Yes — permanent</option>
+            </select>
+          </FG>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+          <FG label="Assigned Date">
+            <input type="date" style={inp} value={d.assigned_date} onChange={e=>setD({...d,assigned_date:e.target.value})}/>
+          </FG>
+          <FG label="Return Date">
+            <input
+              type="date"
+              style={{...inp, opacity: d.is_permanent ? 0.5 : 1}}
+              disabled={d.is_permanent}
+              value={d.to_date}
+              onChange={e=>setD({...d,to_date:e.target.value})}
+            />
+          </FG>
+        </div>
+
+        <FG label="Reason">
+          <input style={inp} value={d.reason} onChange={e=>setD({...d,reason:e.target.value})} placeholder="Reason for assignment"/>
+        </FG>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+          <FG label="Emergency Contact"><input style={inp} value={d.emergency_contact} onChange={e=>setD({...d,emergency_contact:e.target.value})}/></FG>
+          <FG label="Emergency Phone"><input type="tel" style={inp} value={d.emergency_phone} onChange={e=>setD({...d,emergency_phone:e.target.value})}/></FG>
+        </div>
+
+        <FG label="Notes">
+          <textarea
+            style={{...inp, minHeight:70, resize:'vertical'}}
+            value={d.notes}
+            onChange={e=>setD({...d,notes:e.target.value})}
+            placeholder="Any additional notes about this asset..."
+          />
+        </FG>
+
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:'0.5rem'}}>
+          <button type="button" onClick={()=>setEditAsset(null)} style={{padding:'8px 18px',borderRadius:5,border:'1px solid rgba(198,40,40,0.3)',background:'transparent',color:'var(--red-primary)',cursor:'pointer',fontSize:'0.8rem',fontWeight:600}}>Cancel</button>
+          <button type="submit" disabled={saving} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 18px',borderRadius:6,border:'none',background:'var(--red-primary)',color:'#fff',cursor:saving?'not-allowed':'pointer',fontSize:'0.8rem',fontWeight:600}}>
+            <Save size={14}/> {saving ? 'Saving...' : 'Save Asset'}
           </button>
         </div>
       </form>
@@ -533,7 +826,7 @@ export default function AdminEmployees() {
     </button>
   )
 
-  // ✅ NEW: Status filter pill component
+  // ✅ Status filter pill component
   const StatusFilterPill = ({ id, label, icon: Icon, count }: { id: 'all' | 'active' | 'inactive', label: string, icon: any, count: number }) => (
     <button
       onClick={() => setStatusFilter(id)}
@@ -580,7 +873,7 @@ export default function AdminEmployees() {
         </div>
       </div>
 
-      {/* ✅ NEW: Status Filter Pills */}
+      {/* ✅ Status Filter Pills */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.2rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <StatusFilterPill id="all" label="All" icon={Users} count={totalCount} />
         <StatusFilterPill id="active" label="Active" icon={UserCheck} count={activeCount} />
@@ -659,8 +952,10 @@ export default function AdminEmployees() {
                         <span style={{background:'#b71c1c',color:'#fff',fontSize:'0.62rem',fontWeight:700,padding:'2px 8px',borderRadius:10}}>{e.open_tickets}</span>
                       ) : <span style={{color:'var(--text-muted)',fontSize:'0.78rem'}}>—</span>}
                     </td>
+                    {/* ✅ FIXED: correct variable "e" (this row's employee), original Dept/Edit/Delete buttons restored */}
                     <td style={{padding:'10px 1.2rem'}}>
                       <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                        <button onClick={(ev) => { ev.stopPropagation(); setDeptEmp(e); }} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'1px solid rgba(21,101,192,0.3)',background:'rgba(21,101,192,0.06)',color:'#1565c0',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}} title="Edit department only"><Building2 size={11}/> Dept</button>
                         <button onClick={(ev) => { ev.stopPropagation(); setEditEmp(e); }} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}><Pencil size={11}/> Edit</button>
                         <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e._id||e.id); }} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'1px solid rgba(198,40,40,0.25)',background:'rgba(198,40,40,0.08)',color:'#c62828',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}><Trash2 size={11}/> Delete</button>
                       </div>
@@ -699,8 +994,16 @@ export default function AdminEmployees() {
                     </td>
                     <td style={{padding:'12px 1.4rem',fontFamily:'IBM Plex Mono',color:'var(--red-primary)',fontSize:'0.77rem'}}>{a.emp_id}</td>
                     <td style={{padding:'12px 1.4rem',fontSize:'0.78rem',color:'var(--text-muted)'}}>{a.phone||'—'}</td>
+                    {/* ✅ FIXED: Delete button added for Admins, correct variable "a" */}
                     <td style={{padding:'10px 1.2rem'}}>
-                      <button onClick={()=>setEditAdmin(a)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}><Pencil size={11}/> Edit</button>
+                      <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                        <button onClick={()=>setEditAdmin(a)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'none',background:'var(--red-primary)',color:'#fff',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
+                          <Pencil size={11}/> Edit
+                        </button>
+                        <button onClick={()=>handleDelete(a._id||a.id, true)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:5,border:'1px solid rgba(198,40,40,0.25)',background:'rgba(198,40,40,0.08)',color:'#c62828',cursor:'pointer',fontSize:'0.7rem',fontWeight:600}}>
+                          <Trash2 size={11}/> Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -858,6 +1161,19 @@ export default function AdminEmployees() {
                                   <span style={{ color: 'var(--text-muted)' }}>—</span>
                                   <span style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>{asset.name || 'Unknown'}</span>
                                   <AssetStatusBadge status={asset.status || 'assigned'} />
+                                  {/* ✅ NEW: Edit button for this asset */}
+                                  <button
+                                    onClick={() => setEditAsset(asset)}
+                                    style={{
+                                      marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4,
+                                      padding: '3px 9px', borderRadius: 5,
+                                      border: '1px solid rgba(21,101,192,0.3)',
+                                      background: 'rgba(21,101,192,0.06)', color: '#1565c0',
+                                      cursor: 'pointer', fontSize: '0.68rem', fontWeight: 600
+                                    }}
+                                  >
+                                    <Pencil size={11} /> Edit
+                                  </button>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '4px 16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                   <span><strong>Type:</strong> {asset.asset_type || '—'}</span>
@@ -890,6 +1206,19 @@ export default function AdminEmployees() {
                                 </span>
                               </div>
                               <AssetStatusBadge status={asset.status} />
+                              {/* ✅ NEW: Edit button for history records too */}
+                              <button
+                                onClick={() => setEditAsset(asset)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 4,
+                                  padding: '3px 9px', borderRadius: 5,
+                                  border: '1px solid rgba(21,101,192,0.3)',
+                                  background: 'rgba(21,101,192,0.06)', color: '#1565c0',
+                                  cursor: 'pointer', fontSize: '0.68rem', fontWeight: 600
+                                }}
+                              >
+                                <Pencil size={11} /> Edit
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -976,6 +1305,13 @@ export default function AdminEmployees() {
       <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Employee"><AddForm/></Modal>
       {editEmp && (<Modal open={true} onClose={()=>setEditEmp(null)} title="Edit Employee"><EditForm emp={editEmp} isAdmin={false}/></Modal>)}
       {editAdmin && (<Modal open={true} onClose={()=>setEditAdmin(null)} title="Edit Admin"><EditForm emp={editAdmin} isAdmin={true}/></Modal>)}
+      {deptEmp && (<Modal open={true} onClose={()=>setDeptEmp(null)} title="Edit Department"><DeptEditForm emp={deptEmp}/></Modal>)}
+      {/* ✅ NEW: Asset Edit Modal */}
+      {editAsset && (
+        <Modal open={true} onClose={() => setEditAsset(null)} title="Edit Asset">
+          <AssetEditForm asset={editAsset} onSaved={handleAssetUpdated} />
+        </Modal>
+      )}
     </AppLayout>
   )
 }

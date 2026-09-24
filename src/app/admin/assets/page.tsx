@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import AppLayout from '@/components/AppLayout'
+import * as XLSX from 'xlsx'
 import {
   PageHeader,
   Alert,
@@ -123,6 +124,7 @@ type Employee = {
   full_name?: string
   email?: string
   department?: string
+  kind?: 'Employee' | 'Admin'
 }
 
 type Asset = {
@@ -293,13 +295,13 @@ function TableHeader({ title }: { title: string }) {
 
 function AssignForm({
   asset,
-  employees,
+  people,
   onAssign,
   onCancel,
   setMsg,
 }: {
   asset: Asset
-  employees: Employee[]
+  people: Employee[]
   onAssign: (assetId: string, employeeId: string) => void
   onCancel: () => void
   setMsg: (msg: Message) => void
@@ -396,11 +398,12 @@ function AssignForm({
             — Choose an Employee —
           </option>
 
-          {employees.map((employee) => {
+          {people.map((employee) => {
             const id = employee._id || employee.id
 
             return (
               <option key={id} value={id}>
+                {employee.kind === 'Admin' ? '[ADMIN] ' : ''}
                 {employee.name ||
                   employee.full_name ||
                   'Unnamed Employee'}
@@ -418,7 +421,7 @@ function AssignForm({
         </select>
       </FormGroup>
 
-      {employees.length === 0 && (
+      {people.length === 0 && (
         <div
           style={{
             padding: '0.8rem',
@@ -435,8 +438,8 @@ function AssignForm({
           }}
         >
           <AlertTriangle size={15} />
-          No employees found. Please add employees
-          first.
+          No employees or admins found. Please
+          add them first.
         </div>
       )}
 
@@ -458,7 +461,7 @@ function AssignForm({
 
         <button
           type="submit"
-          disabled={employees.length === 0}
+          disabled={people.length === 0}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -467,12 +470,12 @@ function AssignForm({
             borderRadius: 5,
             border: 'none',
             background:
-              employees.length === 0
+              people.length === 0
                 ? '#aaa'
                 : '#1565c0',
             color: '#fff',
             cursor:
-              employees.length === 0
+              people.length === 0
                 ? 'not-allowed'
                 : 'pointer',
             fontSize: '0.8rem',
@@ -480,7 +483,7 @@ function AssignForm({
           }}
         >
           <UserPlus size={15} />
-          Assign to Employee
+          Assign to Employee / Admin
         </button>
       </div>
     </form>
@@ -655,13 +658,13 @@ function ReplaceCategoryForm({
 
 function AssetForm({
   existing,
-  employees,
+  people,
   onSuccess,
   onCancel,
   setMsg,
 }: {
   existing?: Asset | null
-  employees: Employee[]
+  people: Employee[]
   onSuccess: () => void
   onCancel: () => void
   setMsg: (msg: Message) => void
@@ -894,7 +897,7 @@ function AssetForm({
         let employeeName = ''
 
         if (shared.assigned_to) {
-          const employee = employees.find(
+          const employee = people.find(
             (emp) =>
               (emp._id || emp.id) ===
               shared.assigned_to
@@ -961,12 +964,13 @@ function AssetForm({
             — Select Employee (Optional) —
           </option>
 
-          {employees.map((employee) => {
+          {people.map((employee) => {
             const id =
               employee._id || employee.id
 
             return (
               <option key={id} value={id}>
+                {employee.kind === 'Admin' ? '[ADMIN] ' : ''}
                 {employee.name ||
                   employee.full_name ||
                   'Unnamed Employee'}
@@ -1437,7 +1441,7 @@ export default function AdminAssets() {
   const [allAssets, setAllAssets] =
     useState<Asset[]>([])
 
-  const [employees, setEmployees] =
+  const [people, setPeople] =
     useState<Employee[]>([])
 
   const [stats, setStats] = useState({
@@ -1603,12 +1607,12 @@ export default function AdminAssets() {
      LOAD EMPLOYEES
   ======================================================= */
 
-  const loadEmployees = async () => {
+  const loadPeople = async () => {
     try {
       const { data } =
         await api.get('/employees')
 
-      const list = Array.isArray(
+      const empList = Array.isArray(
         data?.employees
       )
         ? data.employees
@@ -1616,14 +1620,33 @@ export default function AdminAssets() {
           ? data
           : []
 
-      setEmployees(list)
+      const adminList = Array.isArray(
+        data?.admins
+      )
+        ? data.admins
+        : []
+
+      /*
+        Combine employees + admins so assets
+        can be assigned to either.
+      */
+      setPeople([
+        ...empList.map((e: any) => ({
+          ...e,
+          kind: 'Employee' as const,
+        })),
+        ...adminList.map((a: any) => ({
+          ...a,
+          kind: 'Admin' as const,
+        })),
+      ])
     } catch (error) {
       console.error(
-        'Failed to load employees:',
+        'Failed to load people:',
         error
       )
 
-      setEmployees([])
+      setPeople([])
     }
   }
 
@@ -1633,7 +1656,7 @@ export default function AdminAssets() {
 
   useEffect(() => {
     load()
-    loadEmployees()
+    loadPeople()
   }, [])
 
   /* =======================================================
@@ -2032,7 +2055,7 @@ export default function AdminAssets() {
       })
     }
   }
-  
+
   /* =======================================================
      ASSIGN
   ======================================================= */
@@ -2095,6 +2118,128 @@ export default function AdminAssets() {
           'Unassign failed.',
       })
     }
+  }
+
+  /* =======================================================
+     DOWNLOAD EMPLOYEE-WISE ASSET REPORT
+  ======================================================= */
+
+  const handleDownloadReport = () => {
+    if (allAssets.length === 0) {
+      setMsg({
+        type: 'error',
+        text: 'No assets available to export.',
+      })
+      return
+    }
+
+    const reportRows = allAssets.map((asset) => ({
+      'Asset Code': asset.asset_code || '—',
+      'Asset Name': asset.name || '—',
+      'Category': asset.category || '—',
+      'Brand': asset.brand || '—',
+      'Model': asset.model || '—',
+      'Serial No': asset.serial_no || '—',
+      'Status': asset.status || '—',
+      'Assigned To': asset.assigned_to_name || 'Unassigned',
+      'Location': asset.location || '—',
+      'Purchase Date': asset.purchase_date
+        ? new Date(asset.purchase_date).toLocaleDateString('en-GB')
+        : '—',
+      'Warranty Until': asset.warranty_until
+        ? new Date(asset.warranty_until).toLocaleDateString('en-GB')
+        : '—',
+      'Notes': asset.notes || '—',
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(reportRows)
+
+    worksheet['!cols'] = [
+      { wch: 16 }, // Asset Code
+      { wch: 22 }, // Asset Name
+      { wch: 14 }, // Category
+      { wch: 14 }, // Brand
+      { wch: 16 }, // Model
+      { wch: 18 }, // Serial No
+      { wch: 14 }, // Status
+      { wch: 20 }, // Assigned To
+      { wch: 16 }, // Location
+      { wch: 14 }, // Purchase Date
+      { wch: 14 }, // Warranty Until
+      { wch: 25 }, // Notes
+    ]
+
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'All Assets')
+
+    /* -----------------------------------------------------
+       EMPLOYEE-WISE SHEET (Grouped by Assigned Employee)
+    ----------------------------------------------------- */
+
+    const assignedAssets = allAssets.filter(
+      (asset) => asset.assigned_to_name
+    )
+
+    const employeeGroups: Record<string, Asset[]> = {}
+
+    assignedAssets.forEach((asset) => {
+      const empName = asset.assigned_to_name || 'Unassigned'
+      if (!employeeGroups[empName]) {
+        employeeGroups[empName] = []
+      }
+      employeeGroups[empName].push(asset)
+    })
+
+    const employeeRows: any[] = []
+
+    Object.keys(employeeGroups)
+      .sort()
+      .forEach((empName) => {
+        employeeGroups[empName].forEach((asset, index) => {
+          employeeRows.push({
+            'Employee Name': index === 0 ? empName : '',
+            'Asset Code': asset.asset_code || '—',
+            'Asset Name': asset.name || '—',
+            'Category': asset.category || '—',
+            'Brand / Model': [asset.brand, asset.model]
+              .filter(Boolean)
+              .join(' / ') || '—',
+            'Serial No': asset.serial_no || '—',
+            'Status': asset.status || '—',
+            'Warranty Until': asset.warranty_until
+              ? new Date(asset.warranty_until).toLocaleDateString('en-GB')
+              : '—',
+          })
+        })
+      })
+
+    const empWorksheet = XLSX.utils.json_to_sheet(employeeRows)
+
+    empWorksheet['!cols'] = [
+      { wch: 20 }, // Employee Name
+      { wch: 16 }, // Asset Code
+      { wch: 22 }, // Asset Name
+      { wch: 14 }, // Category
+      { wch: 20 }, // Brand/Model
+      { wch: 18 }, // Serial No
+      { wch: 14 }, // Status
+      { wch: 14 }, // Warranty Until
+    ]
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      empWorksheet,
+      'Employee-wise Assets'
+    )
+
+    const today = new Date().toISOString().split('T')[0]
+
+    XLSX.writeFile(workbook, `Asset_Report_${today}.xlsx`)
+
+    setMsg({
+      type: 'success',
+      text: 'Asset report downloaded successfully.',
+    })
   }
 
   /* =======================================================
@@ -2512,6 +2657,29 @@ export default function AdminAssets() {
             }}
           >
             Find & Replace
+          </button>
+
+          {/* DOWNLOAD REPORT */}
+
+          <button
+            type="button"
+            onClick={handleDownloadReport}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 12px',
+              borderRadius: 5,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-sub)',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <Boxes size={14} />
+            Download Report
           </button>
 
           {/* ADD */}
@@ -3286,7 +3454,7 @@ export default function AdminAssets() {
         title="Add New Asset"
       >
         <AssetForm
-          employees={employees}
+          people={people}
           onSuccess={afterSave}
           onCancel={() =>
             setShowAdd(false)
@@ -3309,7 +3477,7 @@ export default function AdminAssets() {
         >
           <AssetForm
             existing={editAsset}
-            employees={employees}
+            people={people}
             onSuccess={afterSave}
             onCancel={() =>
               setEditAsset(null)
@@ -3333,7 +3501,7 @@ export default function AdminAssets() {
         >
           <AssignForm
             asset={assignAsset}
-            employees={employees}
+            people={people}
             onAssign={handleAssign}
             onCancel={() =>
               setAssignAsset(null)
