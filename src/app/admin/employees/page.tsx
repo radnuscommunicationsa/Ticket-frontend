@@ -354,8 +354,13 @@ export default function AdminEmployees() {
     
     const matchesStatus = statusFilter === 'all' || e.status === statusFilter
     
-    return matchesSearch && matchesStatus
-  })
+        return matchesSearch && matchesStatus
+  }).sort((a: any, b: any) =>
+    String(a.emp_id || '').localeCompare(String(b.emp_id || ''), undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    })
+  )
 
   // ✅ Count stats for filter pills
   const activeCount = employeesWithCounts.filter((e: any) => e.status === 'active').length
@@ -981,7 +986,14 @@ export default function AdminEmployees() {
               {admins.length === 0 ? (
                 <tr><td colSpan={4} style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>No admins found.</td></tr>
               ) : (
-                admins.map((a: any) => (
+                                [...admins]
+                  .sort((x: any, y: any) =>
+                    String(x.emp_id || '').localeCompare(String(y.emp_id || ''), undefined, {
+                      numeric: true,
+                      sensitivity: 'base',
+                    })
+                  )
+                  .map((a: any) => (
                   <tr key={a._id||a.id} style={{borderBottom:'1px solid var(--border-mid)'}}>
                     <td style={{padding:'12px 1.4rem'}}>
                       <div style={{display:'flex',alignItems:'center',gap:10}}>

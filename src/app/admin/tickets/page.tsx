@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import AppLayout from '@/components/AppLayout'
 import { PageHeader, Alert } from '@/components/ui'
 import api from '@/lib/api'
-import { RefreshCw, Trash2 as TrashIcon, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Trash2 as TrashIcon, AlertTriangle, ArrowLeft } from 'lucide-react'
 
 const STATUS_COLOR: Record<string, string> = {
   open: '#1565c0',
@@ -121,6 +121,19 @@ function AdminTicketsContent() {
   useEffect(() => {
     setSelected([])
   }, [statusFilter, priorityFilter, monthFilter])
+
+
+    /* =========================================================
+     BACK
+     ========================================================= */
+
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back()
+    } else {
+      router.push('/admin/dashboard') // change to your real admin home route
+    }
+  }
 
   /* =========================================================
      REFRESH
@@ -527,7 +540,28 @@ function AdminTicketsContent() {
      ========================================================= */
 
   return (
-    <AppLayout role="admin">
+        <AppLayout role="admin">
+      <button
+        onClick={handleBack}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '6px 12px',
+          marginBottom: '0.75rem',
+          background: 'var(--bg-card)',
+          color: 'var(--text-sub)',
+          border: '1px solid var(--border)',
+          borderRadius: 5,
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+      >
+        <ArrowLeft size={13} />
+        Back
+      </button>
+
       <PageHeader
         breadcrumb="TICKETS"
         title="All Tickets"

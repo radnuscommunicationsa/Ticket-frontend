@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Bell, Clock, User, Info, Circle, Paperclip, Download, MessageSquare, Send, FileEdit, Star } from 'lucide-react'
+import { Bell, Clock, User, Info, Circle, Paperclip, Download, MessageSquare, Send, FileEdit, Star, ArrowLeft } from 'lucide-react'
 
 import AppLayout from '@/components/AppLayout'
 import {
@@ -94,6 +94,14 @@ export default function TicketDetail() {
     }
   }
 
+    const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back()
+    } else {
+      router.push('/admin/tickets')
+    }
+  }
+
   if (loading) return <AppLayout role="admin"><div style={{ padding: '1.5rem', color: 'var(--text-muted)' }}>Loading...</div></AppLayout>
   if (!ticket) return <AppLayout role="admin"><div style={{ padding: '1.5rem', color: '#c62828' }}>Ticket not found</div></AppLayout>
 
@@ -109,7 +117,29 @@ export default function TicketDetail() {
   )
 
   return (
-  <AppLayout role="admin">
+    <AppLayout role="admin">
+    {/* BACK BUTTON */}
+    <button
+      onClick={handleBack}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 12px',
+        marginBottom: '0.75rem',
+        background: 'var(--bg-card)',
+        color: 'var(--text-sub)',
+        border: '1px solid var(--border)',
+        borderRadius: 5,
+        fontSize: '0.75rem',
+        fontWeight: 600,
+        cursor: 'pointer',
+      }}
+    >
+      <ArrowLeft size={13} />
+      Back to Tickets
+    </button>
+
     {/* HEADER */}
     <div style={{ marginBottom: '1rem' }}>
       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 5 }}>
