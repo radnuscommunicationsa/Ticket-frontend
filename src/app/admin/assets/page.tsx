@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react'
 import AppLayout from '@/components/AppLayout'
+import AssetHistoryModal from '@/components/AssetHistoryModal'
 import * as XLSX from 'xlsx'
 import {
   PageHeader,
@@ -25,6 +26,7 @@ import {
   ChevronUp,
   X,
   Upload,
+  History as HistoryIcon,
 } from 'lucide-react'
 
 /* =========================================================
@@ -53,6 +55,15 @@ const SIM_PROVIDERS = ['Jio', 'Airtel', 'Vi', 'BSNL', 'Other']
 
 // Your own known series (first 4 digits -> provider). Fill with real data.
 const SIM_SERIES: Record<string, string> = {}
+
+// Reasons shown when unassigning an asset (saved in asset history)
+const UNASSIGN_REASONS = [
+  'Employee resigned',
+  'Replacement',
+  'Sent for repair',
+  'Transferred to another employee',
+  'Other',
+]
 
 type SpecField = {
   key: string
@@ -261,6 +272,14 @@ type Asset = {
   sim_number?: string
   sim_provider?: string
   specs?: Record<string, string>
+}
+
+type HistoryItem = {
+  action: string
+  employee_name?: string
+  reason?: string
+  done_by?: string
+  date: string
 }
 
 /* =========================================================
@@ -2122,10 +2141,15 @@ function ImportExcelForm({
     // change the person only when Excel has a matched employee
     if (!special && p.assigned_to && ex.assigned_to !== p.assigned_to) {
       if (ex.assigned_to || ex.status === 'Assigned') {
-        await api.patch(`/assets/${id}/unassign`)
+        await api.patch(`/assets/${id}/unassign`, {
+          reason: 'Reassigned via Excel import',
+        })
       }
 
-      await api.patch(`/assets/${id}/assign`, { employee_id: p.assigned_to })
+      await api.patch(`/assets/${id}/assign`, {
+        employee_id: p.assigned_to,
+        reason: 'Excel import',
+      })
     }
   }
 
@@ -2643,6 +2667,53 @@ export default function AdminAssets() {
 
   const [unassignConfirm, setUnassignConfirm] = useState<string | null>(null)
 
+  // Unassign reason (saved in asset history)
+  const [unassignReason, setUnassignReason] = useState(UNASSIGN_REASONS[0])
+  const [unassignOther, setUnassignOther] = useState('')
+
+  /* =======================================================
+     ASSET HISTORY
+  ======================================================= */
+
+  const [historyAsset, setHistoryAsset] = useState<Asset | null>(null)
+  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+
+  const openHistory = async (asset: Asset) => {
+    setHistoryAsset(asset)
+    setHistory([])
+    setHistoryLoading(true)
+
+    try {
+      const { data } = await api.get(
+        `/assets/${asset._id || asset.id}/history`
+      )
+      setHistory(data.history || [])
+    } catch {
+      setHistory([])
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  const [personView, setPersonView] = useState<{ id: string; name: string } | null>(null)
+  const [personHistory, setPersonHistory] = useState<any[]>([])
+  const [personLoading, setPersonLoading] = useState(false)
+
+  const openPersonHistory = async (id: string, name: string) => {
+    setPersonView({ id, name })
+    setPersonHistory([])
+    setPersonLoading(true)
+    try {
+      const { data } = await api.get(`/assets/employee/${id}/history`)
+      setPersonHistory(data.history || [])
+    } catch {
+      setPersonHistory([])
+    } finally {
+      setPersonLoading(false)
+    }
+  }
+
   /* =======================================================
      SCROLL POSITION (fix: table jumping to top after
      edit/assign/unassign/delete actions trigger a reload)
@@ -3118,14 +3189,14 @@ export default function AdminAssets() {
   }
 
   /* =======================================================
-     UNASSIGN
+     UNASSIGN (sends the reason to the backend history)
   ======================================================= */
 
-  const handleUnassign = async (assetId: string) => {
+  const handleUnassign = async (assetId: string, reason: string) => {
     captureScroll()
 
     try {
-      await api.patch(`/assets/${assetId}/unassign`)
+      await api.patch(`/assets/${assetId}/unassign`, { reason })
 
       setMsg({
         type: 'success',
@@ -3324,6 +3395,8 @@ export default function AdminAssets() {
   const closeUnassignConfirm = () => {
     captureScroll()
     setUnassignConfirm(null)
+    setUnassignReason(UNASSIGN_REASONS[0])
+    setUnassignOther('')
     restoreScroll()
   }
 
@@ -3612,7 +3685,6 @@ export default function AdminAssets() {
             <X size={13} />
             Clear Filters
           </button>
-
         </div>
 
         {/* ACTION BUTTONS ROW */}
@@ -3882,11 +3954,11 @@ export default function AdminAssets() {
                         <thead>
                           <tr>
                             <TableHeader title="Code" />
+                            <TableHeader title="Assigned To" />
                             <TableHeader title="Asset Name" />
+                            <TableHeader title="Status" />
                             <TableHeader title="Category" />
                             <TableHeader title="Brand / Model" />
-                            <TableHeader title="Status" />
-                            <TableHeader title="Assigned To" />
                             <TableHeader title="Warranty" />
                             <TableHeader title="Actions" />
                           </tr>
@@ -3895,7 +3967,6 @@ export default function AdminAssets() {
                         <tbody>
                           {categoryAssets.map((asset) => {
                             const id = asset._id || asset.id || ''
-
                             const expired = isWarrantyExpired(
                               asset.warranty_until
                             )
@@ -3908,7 +3979,7 @@ export default function AdminAssets() {
                                     '1px solid var(--border-mid)',
                                 }}
                               >
-                                {/* CODE */}
+                                {/* 1. CODE */}
 
                                 <td
                                   style={{
@@ -3922,67 +3993,7 @@ export default function AdminAssets() {
                                   {asset.asset_code}
                                 </td>
 
-                                {/* NAME */}
-
-                                <td
-                                  style={{
-                                    padding: '12px 1.2rem',
-                                    fontSize: '0.83rem',
-                                    fontWeight: 500,
-                                    color: 'var(--text-main)',
-                                  }}
-                                >
-                                  {asset.name}
-                                </td>
-
-                                {/* CATEGORY */}
-
-                                <td
-                                  style={{
-                                    padding: '12px 1.2rem',
-                                    fontSize: '0.8rem',
-                                    color: 'var(--text-sub)',
-                                  }}
-                                >
-                                  {asset.category || '—'}
-                                </td>
-
-                                {/* BRAND MODEL / SIM */}
-
-                                <td
-                                  style={{
-                                    padding: '12px 1.2rem',
-                                    fontSize: '0.78rem',
-                                    color: 'var(--text-muted)',
-                                  }}
-                                >
-                                  {assetSummary(asset)}
-                                </td>
-
-                                {/* STATUS */}
-
-                                <td style={{ padding: '12px 1.2rem' }}>
-                                  <span
-                                    style={{
-                                      display: 'inline-block',
-                                      fontSize: '0.73rem',
-                                      fontWeight: 600,
-                                      padding: '3px 9px',
-                                      borderRadius: 12,
-                                      color:
-                                        STATUS_COLOR[asset.status || ''] ||
-                                        'var(--text-muted)',
-                                      background: `${
-                                        STATUS_COLOR[asset.status || ''] ||
-                                        '#888'
-                                      }18`,
-                                    }}
-                                  >
-                                    {asset.status}
-                                  </span>
-                                </td>
-
-                                {/* ASSIGNED */}
+                                {/* 2. ASSIGNED TO */}
 
                                 <td
                                   style={{
@@ -4011,6 +4022,7 @@ export default function AdminAssets() {
                                           justifyContent: 'center',
                                           fontSize: '0.6rem',
                                           fontWeight: 700,
+                                          flexShrink: 0,
                                         }}
                                       >
                                         {asset.assigned_to_name
@@ -4018,7 +4030,22 @@ export default function AdminAssets() {
                                           .toUpperCase()}
                                       </span>
 
-                                      <span style={{ fontWeight: 500 }}>
+                                                                            <span
+                                        onClick={() =>
+                                          asset.assigned_to &&
+                                          openPersonHistory(
+                                            String(asset.assigned_to),
+                                            asset.assigned_to_name || ''
+                                          )
+                                        }
+                                        title="View all changes for this person"
+                                        style={{
+                                          fontWeight: 500,
+                                          cursor: 'pointer',
+                                          color: '#1565c0',
+                                          textDecoration: 'underline',
+                                        }}
+                                      >
                                         {asset.assigned_to_name}
                                       </span>
                                     </div>
@@ -4033,7 +4060,67 @@ export default function AdminAssets() {
                                   )}
                                 </td>
 
-                                {/* WARRANTY */}
+                                {/* 3. ASSET NAME */}
+
+                                <td
+                                  style={{
+                                    padding: '12px 1.2rem',
+                                    fontSize: '0.83rem',
+                                    fontWeight: 500,
+                                    color: 'var(--text-main)',
+                                  }}
+                                >
+                                  {asset.name}
+                                </td>
+
+                                {/* 4. STATUS */}
+
+                                <td style={{ padding: '12px 1.2rem' }}>
+                                  <span
+                                    style={{
+                                      display: 'inline-block',
+                                      fontSize: '0.73rem',
+                                      fontWeight: 600,
+                                      padding: '3px 9px',
+                                      borderRadius: 12,
+                                      color:
+                                        STATUS_COLOR[asset.status || ''] ||
+                                        'var(--text-muted)',
+                                      background: `${
+                                        STATUS_COLOR[asset.status || ''] ||
+                                        '#888'
+                                      }18`,
+                                    }}
+                                  >
+                                    {asset.status}
+                                  </span>
+                                </td>
+
+                                {/* 5. CATEGORY */}
+
+                                <td
+                                  style={{
+                                    padding: '12px 1.2rem',
+                                    fontSize: '0.8rem',
+                                    color: 'var(--text-sub)',
+                                  }}
+                                >
+                                  {asset.category || '—'}
+                                </td>
+
+                                {/* 6. BRAND / MODEL / SIM */}
+
+                                <td
+                                  style={{
+                                    padding: '12px 1.2rem',
+                                    fontSize: '0.78rem',
+                                    color: 'var(--text-muted)',
+                                  }}
+                                >
+                                  {assetSummary(asset)}
+                                </td>
+
+                                {/* 7. WARRANTY */}
 
                                 <td
                                   style={{
@@ -4064,7 +4151,7 @@ export default function AdminAssets() {
                                   )}
                                 </td>
 
-                                {/* ACTIONS */}
+                                {/* 8. ACTIONS */}
 
                                 <td style={{ padding: '12px 1.2rem' }}>
                                   <div
@@ -4104,9 +4191,7 @@ export default function AdminAssets() {
                                     {asset.status === 'Assigned' && (
                                       <button
                                         type="button"
-                                        onClick={() =>
-                                          setUnassignConfirm(id)
-                                        }
+                                        onClick={() => setUnassignConfirm(id)}
                                         style={{
                                           display: 'flex',
                                           alignItems: 'center',
@@ -4114,8 +4199,7 @@ export default function AdminAssets() {
                                           padding: '3px 8px',
                                           borderRadius: 5,
                                           border: '1px solid #e65100',
-                                          background:
-                                            'rgba(230,81,0,0.08)',
+                                          background: 'rgba(230,81,0,0.08)',
                                           color: '#e65100',
                                           cursor: 'pointer',
                                           fontSize: '0.68rem',
@@ -4126,6 +4210,26 @@ export default function AdminAssets() {
                                         Unassign
                                       </button>
                                     )}
+
+                                    {/* HISTORY */}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => openHistory(asset)}
+                                      title="View history"
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '3px 7px',
+                                        borderRadius: 5,
+                                        border: '1px solid var(--border)',
+                                        background: 'var(--bg-card)',
+                                        color: 'var(--text-sub)',
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      <HistoryIcon size={12} />
+                                    </button>
 
                                     {/* EDIT */}
 
@@ -4213,7 +4317,7 @@ export default function AdminAssets() {
           IMPORT EXCEL MODAL
       =================================================== */}
 
-{showImport && (
+      {showImport && (
         <div
           style={{
             position: 'fixed',
@@ -4329,7 +4433,7 @@ export default function AdminAssets() {
       )}
 
       {/* ===================================================
-          UNASSIGN CONFIRMATION
+          UNASSIGN CONFIRMATION (with reason)
       =================================================== */}
 
       {unassignConfirm && (
@@ -4341,7 +4445,8 @@ export default function AdminAssets() {
           <div
             style={{
               padding: '1rem',
-              maxWidth: 400,
+              minWidth: 360,
+              maxWidth: 420,
             }}
           >
             <div
@@ -4358,6 +4463,31 @@ export default function AdminAssets() {
               Are you sure you want to unassign this asset from the
               employee?
             </div>
+
+            <FormGroup label="Reason">
+              <select
+                value={unassignReason}
+                onChange={(e) => setUnassignReason(e.target.value)}
+                style={inputStyle}
+              >
+                {UNASSIGN_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </FormGroup>
+
+            {unassignReason === 'Other' && (
+              <FormGroup label="Specify reason">
+                <input
+                  value={unassignOther}
+                  onChange={(e) => setUnassignOther(e.target.value)}
+                  placeholder="Enter reason"
+                  style={inputStyle}
+                />
+              </FormGroup>
+            )}
 
             <div
               style={{
@@ -4379,9 +4509,16 @@ export default function AdminAssets() {
                 onClick={async () => {
                   const id = unassignConfirm
 
-                  setUnassignConfirm(null)
+                  const reason =
+                    unassignReason === 'Other'
+                      ? unassignOther.trim() || 'Other'
+                      : unassignReason
 
-                  await handleUnassign(id)
+                  setUnassignConfirm(null)
+                  setUnassignReason(UNASSIGN_REASONS[0])
+                  setUnassignOther('')
+
+                  await handleUnassign(id, reason)
                 }}
                 style={{
                   padding: '8px 18px',
@@ -4400,6 +4537,89 @@ export default function AdminAssets() {
           </div>
         </Modal>
       )}
+
+      {/* ===================================================
+          ASSET HISTORY MODAL
+      =================================================== */}
+
+      {historyAsset && (
+  <AssetHistoryModal
+    asset={historyAsset}
+    history={history}
+    loading={historyLoading}
+    onClose={() => setHistoryAsset(null)}
+  />
+)}
+
+      {personView && (
+        <Modal
+          open={true}
+          onClose={() => setPersonView(null)}
+          title={`History — ${personView.name}`}
+        >
+          <div style={{ minWidth: 520, maxHeight: '60vh', overflowY: 'auto' }}>
+            {personLoading ? (
+              <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                Loading...
+              </div>
+            ) : personHistory.length === 0 ? (
+              <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                No history found.
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['Date', 'Action', 'Asset', 'Reason', 'By'].map((h) => (
+                      <th
+                        key={h}
+                        style={{
+                          textAlign: 'left',
+                          padding: '8px 10px',
+                          fontSize: '0.65rem',
+                          textTransform: 'uppercase',
+                          color: 'var(--text-muted)',
+                          borderBottom: '1px solid var(--border)',
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {personHistory.map((h: any, i: number) => (
+                    <tr key={i} style={{ borderBottom: '1px solid var(--border-mid)' }}>
+                      <td style={{ padding: '8px 10px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                        {new Date(h.date).toLocaleString('en-GB')}
+                      </td>
+                      <td
+                        style={{
+                          padding: '8px 10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: h.action === 'Assigned' ? '#1565c0' : '#e65100',
+                        }}
+                      >
+                        {h.action}
+                      </td>
+                      <td style={{ padding: '8px 10px', fontSize: '0.75rem' }}>
+                        <b style={{ fontFamily: 'IBM Plex Mono', color: 'var(--red-primary)' }}>
+                          {h.asset_code}
+                        </b>{' '}
+                        {h.asset_name}
+                      </td>
+                      <td style={{ padding: '8px 10px', fontSize: '0.75rem' }}>{h.reason || '—'}</td>
+                      <td style={{ padding: '8px 10px', fontSize: '0.75rem' }}>{h.done_by || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </Modal>
+      )}
+
     </AppLayout>
   )
 }
