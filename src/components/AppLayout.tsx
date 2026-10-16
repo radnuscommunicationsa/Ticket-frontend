@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Moon, Sun, Menu, X, LayoutDashboard, Ticket, Monitor, Users, BarChart3, Bell, UserCircle, Plus, LogOut, Tv, Star, Home } from 'lucide-react'
 import api from '../lib/api'
 import { getUser, isLoggedIn, clearAuth } from '../lib/auth'
+import Cookies from 'js-cookie'
 
 function initials(name?: string) {
   if (!name) return "U";
@@ -64,12 +65,23 @@ export default function AppLayout({ children, role }: LayoutProps) {
       return;
     }
     
-    const u = getUser()
-    if (!u || u.role !== role) { 
-      router.replace(role === 'admin' ? '/employee/dashboard' : '/login'); 
-      return;
+        const u = getUser()
+    if (!u) {
+      router.replace('/login')
+      return
     }
-    
+
+    // admin can open employee pages (Raise Ticket etc), employee cannot open admin pages
+    const allowed =
+      role === 'employee'
+        ? u.role === 'employee' || u.role === 'admin'
+        : u.role === 'admin'
+
+    if (!allowed) {
+      router.replace(u.role === 'admin' ? '/admin/dashboard' : '/employee/dashboard')
+      return
+    }
+
     setUser(u)
     
     // Safe theme loading
@@ -135,7 +147,7 @@ export default function AppLayout({ children, role }: LayoutProps) {
         }
       }
 
-      if (role === 'admin') {
+            if (getUser()?.role === 'admin') {
         const { data: takeHomeData } = await api.get(
           '/assets/take-home-requests/pending-count'
         )
@@ -190,8 +202,8 @@ export default function AppLayout({ children, role }: LayoutProps) {
         } : {})
       })
       const updated = { ...user, name: editData.name, phone: editData.phone }
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('td_user', JSON.stringify(updated))
+            if (typeof window !== 'undefined') {
+        Cookies.set('td_user', JSON.stringify(updated), { expires: 1 })
       }
       setUser(updated)
       setEditMsg({ type: 'success', text: 'Profile updated successfully!' })
@@ -242,7 +254,8 @@ export default function AppLayout({ children, role }: LayoutProps) {
   { href: '/employee/notifications', icon: <Bell size={18}/>, label: 'Notifications', badge: notifCount },
   { href: '/employee/profile', icon: <UserCircle size={18}/>, label: 'My Profile' },
 ]
-  const sideLinks = role === 'admin' ? adminSide : empSide
+    const viewRole = user?.role === 'admin' ? 'admin' : role
+  const sideLinks = viewRole === 'admin' ? adminSide : empSide
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -373,12 +386,12 @@ export default function AppLayout({ children, role }: LayoutProps) {
             <span className="brand-text" style={{ whiteSpace: 'nowrap' }}>
               Ticket<span className="text-gradient">Desk</span>
             </span>
-            {role === 'admin' && <span className="mono role-tag" style={{ fontSize: '0.65rem', color: 'var(--red-primary)', fontWeight: 600, border: '1px solid var(--red-primary)', borderRadius: 5, padding: '2px 6px', marginLeft: 4, background: 'var(--red-glow)', flexShrink: 0 }}>ADMIN</span>}
+                        {viewRole === 'admin' && <span className="mono role-tag" style={{ fontSize: '0.65rem', color: 'var(--red-primary)', fontWeight: 600, border: '1px solid var(--red-primary)', borderRadius: 5, padding: '2px 6px', marginLeft: 4, background: 'var(--red-glow)', flexShrink: 0 }}>ADMIN</span>}
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <Link href={role === 'admin' ? '/admin/notifications' : '/employee/notifications'}
+          <Link href={viewRole === 'admin' ? '/admin/notifications' : '/employee/notifications'}
             style={{ position: 'relative', textDecoration: 'none', padding: '8px', color: 'var(--text-main)', display: 'flex', borderRadius: 8, transition: 'background 0.15s ease', background: 'var(--bg-mid)', border: '1px solid var(--border)' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--red-glow)'; e.currentTarget.style.borderColor = 'var(--red-primary)' }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-mid)'; e.currentTarget.style.borderColor = 'var(--border)' }}
@@ -416,7 +429,7 @@ export default function AppLayout({ children, role }: LayoutProps) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px),', marginTop: 64 }}>
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px)', marginTop: 64 }}>
         {/* Sidebar */}
         <div className="sidebar" style={{
           width: 240, padding: '1.4rem 0.8rem', flexShrink: 0,

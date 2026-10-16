@@ -7,8 +7,13 @@ export interface User {
 
 export const getUser = (): User | null => {
   if (typeof window === 'undefined') return null;
-  const u = Cookies.get('td_user');
-  return u ? JSON.parse(u) : null;
+    const u = Cookies.get('td_user');
+  if (!u) return null;
+  try {
+    return JSON.parse(u);
+  } catch {
+    return null;
+  }
 };
 
 export const getToken = () => Cookies.get('td_token') || null;

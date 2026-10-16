@@ -52,7 +52,8 @@ type TakeHomeRequest = {
 
 const filterStyle: React.CSSProperties = {
   padding: '8px 10px',
-  minWidth: 160,
+  minWidth: 0,
+  flex: '1 1 140px',
   borderRadius: 5,
   border: '1px solid var(--border)',
   background: 'var(--bg-input)',
@@ -780,14 +781,7 @@ const handlePrint = (req: TakeHomeRequest) => {
       {msg && <Alert type={msg.type} message={msg.text} />}
 
       {/* STATS */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
+            <div className="th-stats">
         <StatCard label="Pending Manager" value={stats.pending} sub="Awaiting first approval" color="#ef6c00" />
         <StatCard label="Pending IT" value={stats.pendingIt} sub="Awaiting final approval" color="#1565c0" />
         <StatCard label="Approved" value={stats.approved} sub="Handed over" color="#2e7d32" />
@@ -808,7 +802,7 @@ const handlePrint = (req: TakeHomeRequest) => {
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ position: 'relative', flex: '1 1 250px', minWidth: 200 }}>
+        <div style={{ position: 'relative', flex: '1 1 100%', minWidth: 0 }}>
           <Search
             size={14}
             color="var(--text-muted)"
@@ -908,7 +902,7 @@ const handlePrint = (req: TakeHomeRequest) => {
                   <div
                     onClick={() => toggleExpand(batch.key)}
                     style={{
-                      padding: '0.9rem 1.4rem',
+                                            padding: '0.9rem 1rem',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
@@ -917,17 +911,17 @@ const handlePrint = (req: TakeHomeRequest) => {
                       flexWrap: 'wrap',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 160 }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px 18px', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                         <User size={13} color="var(--text-muted)" />
                         <span style={{ fontWeight: 700, fontSize: '0.83rem', color: 'var(--text-main)' }}>
                           {employee}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 160 }}>
-                        <Laptop size={13} color="var(--text-muted)" />
-                        <span style={{ fontSize: '0.78rem', color: 'var(--text-sub)', fontFamily: 'IBM Plex Mono' }}>
-                          {isMulti
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, minWidth: 0, flex: '1 1 200px' }}>
+                        <Laptop size={13} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: 3 }} />
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-sub)', fontFamily: 'IBM Plex Mono', wordBreak: 'break-word', lineHeight: 1.5, minWidth: 0 }}>
+                              {isMulti
                             ? `${batch.items.length} assets — ${batch.items.map(getAssetLabel).join(', ')}`
                             : getAssetLabel(primary)}
                         </span>
@@ -979,8 +973,8 @@ const handlePrint = (req: TakeHomeRequest) => {
 
                   {/* EXPANDED DETAILS */}
                   {isOpen && (
-                    <div style={{ padding: '0 1.4rem 1.1rem', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div
+                                        <div style={{ padding: '0 1rem 1.1rem', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                            <div
                         style={{
                           display: 'grid',
                           gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -1114,9 +1108,9 @@ const handlePrint = (req: TakeHomeRequest) => {
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
                               <Laptop size={12} color="var(--text-muted)" />
-                              <span style={{ fontSize: '0.78rem', fontFamily: 'IBM Plex Mono', color: 'var(--text-main)' }}>
+                                                            <span style={{ fontSize: '0.78rem', fontFamily: 'IBM Plex Mono', color: 'var(--text-main)', wordBreak: 'break-word', minWidth: 0 }}>
                                 {getAssetLabel(r)}
-                              </span>
+                                </span>
                               {r.notes && (
                                 <span style={{ fontSize: '0.72rem', color: 'var(--text-sub)', fontStyle: 'italic' }}>
                                   · {r.notes}
@@ -1321,8 +1315,29 @@ const handlePrint = (req: TakeHomeRequest) => {
       )}
 
       <style jsx global>{`
-        .spin {
+               .spin {
           animation: spin 0.8s linear infinite;
+        }
+
+        .th-stats {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+        }
+        .th-stats > * {
+          min-width: 0;
+          overflow: hidden;
+        }
+        @media (max-width: 900px) {
+          .th-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 480px) {
+          .th-stats {
+            gap: 0.6rem;
+          }
         }
         @keyframes spin {
           from { transform: rotate(0deg); }

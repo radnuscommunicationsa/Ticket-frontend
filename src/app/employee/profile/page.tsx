@@ -5,8 +5,7 @@ import { PageHeader, Alert } from '@/components/ui'
 import api from '@/lib/api'
 import { User, Briefcase, KeyRound, ShieldCheck } from 'lucide-react'
 
-const inp = { width:'100%', padding:'9px 12px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text-main)', fontSize:'0.83rem' }
-
+const inp = { width:'100%', padding:'9px 12px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-input)', color:'var(--text-main)', fontSize:'0.83rem', boxSizing:'border-box' as const, minWidth:0 }
 const FG = ({label,children}:{label:string,children:React.ReactNode}) => (
   <div style={{ display:'flex', flexDirection:'column', gap:5, marginBottom:'0.9rem' }}>
     <label style={{ fontSize:'0.7rem', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-muted)' }}>{label}</label>
@@ -120,14 +119,14 @@ export default function Profile() {
       {/* Profile Banner */}
       <div className="card" style={{ marginBottom:'1.2rem', overflow:'hidden' }}>
         <div style={{ height:64, background:'linear-gradient(135deg, var(--red-primary), var(--red-bright))' }} />
-        <div style={{ padding:'0 1.4rem 1.2rem', display:'flex', alignItems:'flex-end', gap:16, marginTop:-40 }}>
-          <div style={{ width:80, height:80, borderRadius:'50%', background:'var(--bg-card)', padding:4, boxShadow:'0 4px 14px rgba(0,0,0,0.15)' }}>
+        <div className="pf-banner" style={{ padding:'0 1.4rem 1.2rem', display:'flex', alignItems:'flex-end', gap:16, marginTop:-40 }}>
+  <div style={{ width:80, height:80, borderRadius:'50%', background:'var(--bg-card)', padding:4, boxShadow:'0 4px 14px rgba(0,0,0,0.15)' }}>
             <div style={{ width:'100%', height:'100%', borderRadius:'50%', background:'var(--red-glow)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--red-primary)', fontWeight:700, fontSize:'1.6rem' }}>
               {profile?.name ? initials(profile.name) : <User size={32} />}
             </div>
           </div>
-          <div style={{ paddingBottom:6 }}>
-            <div style={{ fontSize:'1.1rem', fontWeight:700, color:'var(--text-main)' }}>{profile?.name || '—'}</div>
+                   <div style={{ paddingBottom:6, minWidth:0, flex:1 }}>
+            <div style={{ fontSize:'1.1rem', fontWeight:700, color:'var(--text-main)', wordBreak:'break-word' }}>{profile?.name || '—'}</div>
             <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:'0.78rem', color:'var(--text-muted)', marginTop:2 }}>
               <Briefcase size={13}/> {profile?.emp_id} · {profile?.department}
             </div>
@@ -135,8 +134,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.2rem', alignItems:'stretch' }}>
-
+           <div className="pf-grid">
         <div className="card" style={{ display:'flex', flexDirection:'column' }}>
           <div style={{ padding:'0.9rem 1.2rem', borderBottom:'1px solid var(--border)', background:'var(--bg-mid)', display:'flex', alignItems:'center', gap:8 }}>
             <User size={15} color="var(--red-primary)"/>
@@ -187,6 +185,28 @@ export default function Profile() {
         </div>
 
       </div>
+
+      <style jsx global>{`
+        .pf-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.2rem;
+          align-items: stretch;
+        }
+        .pf-grid > * {
+          min-width: 0;
+        }
+        @media (max-width: 768px) {
+          .pf-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+          }
+          .pf-banner {
+            padding: 0 1rem 1rem !important;
+            gap: 12px !important;
+          }
+        }
+      `}</style>
     </AppLayout>
   )
 }

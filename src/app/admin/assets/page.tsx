@@ -56,6 +56,24 @@ const SIM_PROVIDERS = ['Jio', 'Airtel', 'Vi', 'BSNL', 'Other']
 // Your own known series (first 4 digits -> provider). Fill with real data.
 const SIM_SERIES: Record<string, string> = {}
 
+// true when the screen is phone-sized
+function useIsMobile(breakpoint = 768) {
+  const [mobile, setMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setMobile(window.innerWidth <= breakpoint)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [breakpoint])
+
+  return mobile
+}
+
+// Sorts ASSET-2 before ASSET-10
+const naturalCompare = (a: string, b: string) =>
+  a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+
 // Reasons shown when unassigning an asset (saved in asset history)
 const UNASSIGN_REASONS = [
   'Employee resigned',
@@ -976,7 +994,16 @@ function AssetForm({
       return
     }
 
-    for (let i = 0; i < rows.length; i++) {
+        for (let i = 0; i < rows.length; i++) {
+      // SIM: auto-generate the code from the SIM number
+      if (
+        isSim &&
+        !rows[i].asset_code.trim() &&
+        /^\d{10}$/.test(rows[i].sim_number.trim())
+      ) {
+        rows[i].asset_code = `SIM-${rows[i].sim_number.trim()}`
+      }
+
       if (!rows[i].asset_code.trim()) {
         setMsg({
           type: 'error',
@@ -1083,15 +1110,17 @@ function AssetForm({
         const extraRows = rows.slice(1)
 
         if (extraRows.length > 0) {
-          await Promise.all(
-            extraRows.map((row) =>
-              api.post('/assets', {
-                ...buildPayload(row),
-                status: shared.assigned_to ? 'Assigned' : shared.status,
-                assigned_to: shared.assigned_to || undefined,
-              })
-            )
+                    const sortedExtra = [...extraRows].sort((a, b) =>
+            naturalCompare(a.asset_code, b.asset_code)
           )
+
+          for (const row of sortedExtra) {
+            await api.post('/assets', {
+              ...buildPayload(row),
+              status: shared.assigned_to ? 'Assigned' : shared.status,
+              assigned_to: shared.assigned_to || undefined,
+            })
+          }
         }
 
         setMsg({
@@ -1108,15 +1137,18 @@ function AssetForm({
       ================================================= */
 
       else {
-        const payloads = rows.map((row) => ({
-          ...buildPayload(row),
-          status: shared.assigned_to ? 'Assigned' : shared.status,
-          assigned_to: shared.assigned_to || undefined,
-        }))
+                const payloads = rows
+          .map((row) => ({
+            ...buildPayload(row),
+            status: shared.assigned_to ? 'Assigned' : shared.status,
+            assigned_to: shared.assigned_to || undefined,
+          }))
+          .sort((a, b) => naturalCompare(a.asset_code, b.asset_code))
 
-        await Promise.all(
-          payloads.map((payload) => api.post('/assets', payload))
-        )
+        // one by one, so they are saved in code order
+        for (const payload of payloads) {
+          await api.post('/assets', payload)
+        }
 
         let employeeName = ''
 
@@ -1498,15 +1530,17 @@ function AssetForm({
             }}
           >
             <div>
-              <label style={smallLabelStyle}>Asset Code *</label>
+                            <label style={smallLabelStyle}>
+                Asset Code {isSim ? '(auto for SIM)' : '*'}
+              </label>
 
               <input
-                required
+                required={!isSim}
                 value={row.asset_code}
                 onChange={(e) =>
                   updateRow(index, 'asset_code', e.target.value)
                 }
-                placeholder="ASSET-001"
+                placeholder={isSim ? 'Leave empty → SIM-98XXXXXXXX' : 'ASSET-001'}
                 style={inputStyle}
               />
             </div>
@@ -1946,9 +1980,13 @@ function ImportExcelForm({
         const catRaw = get(r, 'Category')
         const category =
           CATS.find((c) => c.toLowerCase() === catRaw.toLowerCase()) || catRaw
-        const code = get(r, 'Asset Code')
+                const simNumber = get(r, 'SIM Number')
+        const code =
+          get(r, 'Asset Code') ||
+          (category === 'SIM Card' && /^\d{10}$/.test(simNumber)
+            ? `SIM-${simNumber}`
+            : '')
         const name = get(r, 'Asset Name')
-        const simNumber = get(r, 'SIM Number')
         const assignedName = get(r, 'Assigned To (Excel name)')
         const existing = code ? codeMap.get(code.toLowerCase()) : undefined
 
@@ -2095,7 +2133,11 @@ function ImportExcelForm({
       ? ['Code already exists in website', ...r.errors]
       : r.errors
 
-  const validRows = rows.filter((r) => errorsOf(r).length === 0)
+    const validRows = rows
+    .filter((r) => errorsOf(r).length === 0)
+    .sort((a, b) =>
+      naturalCompare(a.payload.asset_code || '', b.payload.asset_code || '')
+    )
   const errorRows = rows.length - validRows.length
   const toUpdate = validRows.filter((r) => r.existing && mode === 'update').length
   const toCreate = validRows.length - toUpdate
@@ -2162,7 +2204,7 @@ function ImportExcelForm({
     let ok = 0
     let failed = 0
     const errs: string[] = []
-    const CHUNK = 10
+        const CHUNK = 1 // one at a time keeps the code order
 
     for (let i = 0; i < validRows.length; i += CHUNK) {
       const chunk = validRows.slice(i, i + CHUNK)
@@ -2562,9 +2604,10 @@ function ImportExcelForm({
 
       <div
         style={{
-          padding: '14px 20px',
+                    padding: '14px 20px',
           borderTop: '1px solid var(--border)',
           display: 'flex',
+          flexWrap: 'wrap',
           gap: 10,
           justifyContent: 'flex-end',
           alignItems: 'center',
@@ -2632,6 +2675,7 @@ function ImportExcelForm({
 ========================================================= */
 
 export default function AdminAssets() {
+  const isMobile = useIsMobile()
   /* =======================================================
      DATA
   ======================================================= */
@@ -3029,30 +3073,18 @@ export default function AdminAssets() {
      SORT ASSETS
   ======================================================= */
 
-  const sortedAssets = useMemo(() => {
+    const sortedAssets = useMemo(() => {
     const list = [...filteredAssets]
+    const dir = sortOrder === 'asc' ? 1 : -1
 
     list.sort((a, b) => {
-      let valA: string | number = ''
-      let valB: string | number = ''
-
-      if (sortBy === 'name') {
-        valA = (a.name || '').toLowerCase()
-        valB = (b.name || '').toLowerCase()
-      } else if (sortBy === 'asset_code') {
-        valA = (a.asset_code || '').toLowerCase()
-        valB = (b.asset_code || '').toLowerCase()
-      } else if (sortBy === 'status') {
-        valA = (a.status || '').toLowerCase()
-        valB = (b.status || '').toLowerCase()
-      } else if (sortBy === 'purchase_date') {
-        valA = a.purchase_date ? new Date(a.purchase_date).getTime() : 0
-        valB = b.purchase_date ? new Date(b.purchase_date).getTime() : 0
+      if (sortBy === 'purchase_date') {
+        const x = a.purchase_date ? new Date(a.purchase_date).getTime() : 0
+        const y = b.purchase_date ? new Date(b.purchase_date).getTime() : 0
+        return (x - y) * dir
       }
 
-      if (valA < valB) return sortOrder === 'asc' ? -1 : 1
-      if (valA > valB) return sortOrder === 'asc' ? 1 : -1
-      return 0
+      return naturalCompare(String(a[sortBy] || ''), String(b[sortBy] || '')) * dir
     })
 
     return list
@@ -3213,6 +3245,74 @@ export default function AdminAssets() {
     }
   }
 
+    /* =======================================================
+     DOWNLOAD ASSETS (generic)
+  ======================================================= */
+
+  const downloadAssets = (list: Asset[], label: string) => {
+    if (list.length === 0) {
+      setMsg({ type: 'error', text: `No assets to export for "${label.replace(/_/g, ' ')}".` })
+      return
+    }
+
+    const rows = [...list]
+      .sort((a, b) => naturalCompare(a.asset_code || '', b.asset_code || ''))
+      .map((asset) => ({
+        'Asset Code': asset.asset_code || '—',
+        'Asset Name': asset.name || '—',
+        Category: asset.category || '—',
+        Brand: asset.brand || '—',
+        Model: asset.model || '—',
+        'Serial No': asset.serial_no || '—',
+        'SIM Provider': asset.sim_provider || '—',
+        'SIM Number': asset.sim_number || '—',
+        Specs:
+          Object.entries(asset.specs || {})
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(', ') || '—',
+        Status: asset.status || '—',
+        'Assigned To': asset.assigned_to_name || 'Unassigned',
+        Location: asset.location || '—',
+        'Purchase Date': asset.purchase_date
+          ? new Date(asset.purchase_date).toLocaleDateString('en-GB')
+          : '—',
+        'Warranty Until': asset.warranty_until
+          ? new Date(asset.warranty_until).toLocaleDateString('en-GB')
+          : '—',
+        Notes: asset.notes || '—',
+      }))
+
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws['!cols'] = [16, 22, 14, 14, 16, 18, 14, 14, 40, 14, 20, 16, 14, 14, 25].map(
+      (w) => ({ wch: w })
+    )
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Assets')
+
+    const today = new Date().toISOString().split('T')[0]
+    XLSX.writeFile(wb, `${label}_${today}.xlsx`)
+
+    setMsg({
+      type: 'success',
+      text: `${label.replace(/_/g, ' ')} downloaded (${list.length}).`,
+    })
+  }
+
+  const downloadAll = () => downloadAssets(allAssets, 'All_Assets')
+  const downloadFiltered = () => downloadAssets(sortedAssets, 'Filtered_Assets')
+  const downloadAssigned = () =>
+    downloadAssets(allAssets.filter((a) => a.assigned_to_name), 'Assigned_Assets')
+  const downloadAvailable = () =>
+    downloadAssets(allAssets.filter((a) => a.status === 'Available'), 'Available_Assets')
+  const downloadRepair = () =>
+    downloadAssets(
+      allAssets.filter((a) => ['Under Repair', 'Damaged'].includes(a.status || '')),
+      'Repair_Damaged_Assets'
+    )
+  const downloadCategory = (cat: string, list: Asset[]) =>
+    downloadAssets(list, `${cat.replace(/\s+/g, '_')}_Assets`)
+
   /* =======================================================
      DOWNLOAD EMPLOYEE-WISE ASSET REPORT
   ======================================================= */
@@ -3348,6 +3448,87 @@ export default function AdminAssets() {
     })
   }
 
+    /* =======================================================
+     ACTION BUTTONS (used in mobile cards)
+  ======================================================= */
+
+  const renderActions = (asset: Asset, id: string) => {
+    const base: React.CSSProperties = {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      padding: '7px 12px',
+      borderRadius: 5,
+      cursor: 'pointer',
+      fontSize: '0.72rem',
+      fontWeight: 600,
+    }
+
+    return (
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {asset.status === 'Available' && (
+          <button
+            type="button"
+            onClick={() => setAssignAsset(asset)}
+            style={{ ...base, border: 'none', background: '#1565c0', color: '#fff' }}
+          >
+            <UserPlus size={13} /> Assign
+          </button>
+        )}
+
+        {asset.status === 'Assigned' && (
+          <button
+            type="button"
+            onClick={() => setUnassignConfirm(id)}
+            style={{
+              ...base,
+              border: '1px solid #e65100',
+              background: 'rgba(230,81,0,0.08)',
+              color: '#e65100',
+            }}
+          >
+            <Unlock size={13} /> Unassign
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => openHistory(asset)}
+          style={{
+            ...base,
+            border: '1px solid var(--border)',
+            background: 'var(--bg-card)',
+            color: 'var(--text-sub)',
+          }}
+        >
+          <HistoryIcon size={13} /> History
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setEditAsset(asset)}
+          style={{ ...base, border: 'none', background: 'var(--red-primary)', color: '#fff' }}
+        >
+          <Pencil size={13} /> Edit
+        </button>
+
+        <button
+          type="button"
+          onClick={() => id && handleDelete(id)}
+          style={{
+            ...base,
+            border: '1px solid rgba(198,40,40,0.25)',
+            background: 'rgba(198,40,40,0.08)',
+            color: '#c62828',
+          }}
+        >
+          <Trash2 size={13} /> Delete
+        </button>
+      </div>
+    )
+  }
+
   /* =======================================================
      RESET AFTER ADD / EDIT
   ======================================================= */
@@ -3405,7 +3586,29 @@ export default function AdminAssets() {
   ======================================================= */
 
   return (
-    <AppLayout role="admin">
+       <AppLayout role="admin">
+            <style>{`
+        @media (max-width: 768px) {
+          [style*="repeat(4,"] {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          [style*="repeat(2,"],
+          [style*="repeat(3,"] {
+            grid-template-columns: 1fr !important;
+          }
+          button[title="Remove"] {
+            grid-column: auto !important;
+            grid-row: auto !important;
+          }
+          input, select, textarea {
+            font-size: 16px !important;
+          }
+          html, body {
+            overflow-x: hidden;
+          }
+        }
+      `}</style>
+
       <PageHeader
         breadcrumb="ASSETS"
         title="Asset Management"
@@ -3718,28 +3921,40 @@ export default function AdminAssets() {
             Find & Replace
           </button>
 
-          {/* DOWNLOAD REPORT */}
+                   {/* DOWNLOAD BUTTONS */}
 
-          <button
-            type="button"
-            onClick={handleDownloadReport}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 12px',
-              borderRadius: 5,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-card)',
-              color: 'var(--text-sub)',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            <Boxes size={14} />
-            Download Report
-          </button>
+          {(
+            [
+              ['All Assets', downloadAll],
+              ['Filtered', downloadFiltered],
+              ['Assigned', downloadAssigned],
+              ['Available', downloadAvailable],
+              ['Repair / Damaged', downloadRepair],
+              ['Employee-wise', handleDownloadReport],
+            ] as [string, () => void][]
+          ).map(([label, fn]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={fn}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 12px',
+                borderRadius: 5,
+                border: '1px solid var(--border)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-sub)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <Boxes size={14} />
+              {label}
+            </button>
+          ))}
 
           {/* IMPORT EXCEL */}
 
@@ -3780,8 +3995,10 @@ export default function AdminAssets() {
               color: '#fff',
               cursor: 'pointer',
               fontSize: '0.8rem',
-              fontWeight: 600,
-              marginLeft: 'auto',
+                            fontWeight: 600,
+              marginLeft: isMobile ? 0 : 'auto',
+              width: isMobile ? '100%' : undefined,
+              justifyContent: 'center',
             }}
           >
             <Plus size={15} />
@@ -3898,10 +4115,11 @@ export default function AdminAssets() {
                         cursor: 'pointer',
                       }}
                     >
-                      <div
+                                            <div
                         style={{
                           display: 'flex',
                           alignItems: 'center',
+                          flexWrap: 'wrap',
                           gap: 10,
                         }}
                       >
@@ -3929,9 +4147,21 @@ export default function AdminAssets() {
                             border: '1px solid var(--border)',
                           }}
                         >
-                          {categoryAssets.length} asset
+                                                    {categoryAssets.length} asset
                           {categoryAssets.length > 1 ? 's' : ''}
                         </span>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation() // don't expand/collapse
+                            downloadCategory(category, categoryAssets)
+                          }}
+                          title={`Download ${category}`}
+                          style={{ ...smallActionButton, padding: '2px 8px' }}
+                        >
+                          ⬇ Excel
+                        </button>
                       </div>
 
                       {expanded ? (
@@ -3943,7 +4173,150 @@ export default function AdminAssets() {
 
                     {/* CATEGORY TABLE */}
 
-                    {expanded && (
+                                       {/* MOBILE: CARD LIST */}
+
+                    {expanded && isMobile && (
+                      <div
+                        style={{
+                          padding: '0.75rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10,
+                        }}
+                      >
+                        {categoryAssets.map((asset) => {
+                          const id = asset._id || asset.id || ''
+                          const expired = isWarrantyExpired(asset.warranty_until)
+
+                          return (
+                            <div
+                              key={id || asset.asset_code}
+                              style={{
+                                border: '1px solid var(--border)',
+                                borderRadius: 8,
+                                padding: '0.8rem',
+                                background: 'var(--bg-card)',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  marginBottom: 6,
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontFamily: 'IBM Plex Mono',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 600,
+                                    color: 'var(--red-primary)',
+                                    wordBreak: 'break-all',
+                                  }}
+                                >
+                                  {asset.asset_code}
+                                </span>
+
+                                <span
+                                  style={{
+                                    fontSize: '0.7rem',
+                                    fontWeight: 600,
+                                    padding: '3px 9px',
+                                    borderRadius: 12,
+                                    whiteSpace: 'nowrap',
+                                    color: STATUS_COLOR[asset.status || ''] || 'var(--text-muted)',
+                                    background: `${STATUS_COLOR[asset.status || ''] || '#888'}18`,
+                                  }}
+                                >
+                                  {asset.status}
+                                </span>
+                              </div>
+
+                              <div
+                                style={{
+                                  fontSize: '0.88rem',
+                                  fontWeight: 600,
+                                  color: 'var(--text-main)',
+                                  marginBottom: 4,
+                                }}
+                              >
+                                {asset.name}
+                              </div>
+
+                              <div
+                                style={{
+                                  fontSize: '0.76rem',
+                                  color: 'var(--text-muted)',
+                                  marginBottom: 8,
+                                }}
+                              >
+                                {assetSummary(asset)}
+                              </div>
+
+                              <div
+                                style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: '1fr 1fr',
+                                  gap: 8,
+                                  marginBottom: 10,
+                                  fontSize: '0.75rem',
+                                }}
+                              >
+                                <div>
+                                  <span style={labelStyle}>Assigned To</span>
+                                  <div style={{ marginTop: 2 }}>
+                                    {asset.assigned_to_name ? (
+                                      <span
+                                        onClick={() =>
+                                          asset.assigned_to &&
+                                          openPersonHistory(
+                                            String(asset.assigned_to),
+                                            asset.assigned_to_name || ''
+                                          )
+                                        }
+                                        style={{
+                                          color: '#1565c0',
+                                          textDecoration: 'underline',
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        {asset.assigned_to_name}
+                                      </span>
+                                    ) : (
+                                      <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <span style={labelStyle}>Warranty</span>
+                                  <div
+                                    style={{
+                                      marginTop: 2,
+                                      color: expired ? '#c62828' : 'var(--text-sub)',
+                                      fontWeight: expired ? 600 : 400,
+                                    }}
+                                  >
+                                    {asset.warranty_until
+                                      ? new Date(asset.warranty_until).toLocaleDateString('en-GB')
+                                      : '—'}
+                                    {expired && asset.warranty_until ? ' (Expired)' : ''}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {renderActions(asset, id)}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* DESKTOP: TABLE */}
+
+                    {expanded && !isMobile && (
                       <table
                         style={{
                           width: '100%',
@@ -4445,7 +4818,7 @@ export default function AdminAssets() {
           <div
             style={{
               padding: '1rem',
-              minWidth: 360,
+                            minWidth: isMobile ? 0 : 360,
               maxWidth: 420,
             }}
           >
@@ -4557,7 +4930,13 @@ export default function AdminAssets() {
           onClose={() => setPersonView(null)}
           title={`History — ${personView.name}`}
         >
-          <div style={{ minWidth: 520, maxHeight: '60vh', overflowY: 'auto' }}>
+                    <div
+            style={{
+              minWidth: isMobile ? 0 : 520,
+              maxHeight: '60vh',
+              overflow: 'auto',
+            }}
+          >
             {personLoading ? (
               <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                 Loading...

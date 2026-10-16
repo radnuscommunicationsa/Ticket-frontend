@@ -49,7 +49,7 @@ export default function AdminFeedback() {
       ) : (
         <>
           {/* SUMMARY CARDS */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div className="fb-summary">
             {/* Average Rating */}
             <div className="card" style={{ padding: '1.2rem', textAlign: 'center' }}>
               <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>Average Rating</div>
@@ -69,9 +69,9 @@ export default function AdminFeedback() {
             </div>
 
             {/* Rating Distribution */}
-            <div className="card" style={{ padding: '1.2rem' }}>
+                       <div className="card fb-dist" style={{ padding: '1.2rem' }}>
               <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 10 }}>Rating Distribution</div>
-              {[5, 4, 3, 2, 1].map(star => {
+                 {[5, 4, 3, 2, 1].map(star => {
                 const count = data.distribution?.[star] || 0
                 const pct = data.totalReviews > 0 ? (count / data.totalReviews) * 100 : 0
                 return (
@@ -126,6 +126,7 @@ export default function AdminFeedback() {
                   <div
                     key={i}
                     onClick={() => router.push(`/admin/tickets/${f.ticket_id}`)}
+                    className="fb-row"
                     style={{ padding: '1rem 1.4rem', borderBottom: '1px solid var(--border-mid)', cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'rgba(124,58,237,0.04)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -133,8 +134,8 @@ export default function AdminFeedback() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
                       <div>
                         <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>{f.emp_name} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>· {f.department}</span></div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--red-primary)', fontFamily: 'IBM Plex Mono', marginTop: 2 }}>{f.ticket_no} — {f.subject}</div>
-                      </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--red-primary)', fontFamily: 'IBM Plex Mono', marginTop: 2, wordBreak: 'break-word' }}>{f.ticket_no} — {f.subject}</div>
+                        </div>
                       <StarRow rating={f.rating} size={15} />
                     </div>
                     {f.comment && <div style={{ fontSize: '0.82rem', color: 'var(--text-sub)', marginTop: 6, background: 'var(--bg-input)', padding: '8px 10px', borderRadius: 6 }}>{f.comment}</div>}
@@ -144,8 +145,32 @@ export default function AdminFeedback() {
               )}
             </div>
           </div>
-        </>
+                </>
       )}
+
+      <style jsx global>{`
+        .fb-summary {
+          display: grid;
+          grid-template-columns: 1fr 1fr 2fr;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+        }
+        .fb-summary > * {
+          min-width: 0;
+        }
+        @media (max-width: 768px) {
+          .fb-summary {
+            grid-template-columns: 1fr 1fr;
+            gap: 0.7rem;
+          }
+          .fb-dist {
+            grid-column: 1 / -1;
+          }
+          .fb-row {
+            padding: 0.9rem 1rem !important;
+          }
+        }
+      `}</style>
     </AppLayout>
   )
 }
