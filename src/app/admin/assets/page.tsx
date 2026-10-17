@@ -4,29 +4,12 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import AppLayout from '@/components/AppLayout'
 import AssetHistoryModal from '@/components/AssetHistoryModal'
 import * as XLSX from 'xlsx'
-import {
-  PageHeader,
-  Alert,
-  Modal,
-  StatCard,
-} from '@/components/ui'
+import { PageHeader, Alert, Modal, StatCard } from '@/components/ui'
 import api from '@/lib/api'
 
 import {
-  Search,
-  AlertTriangle,
-  UserPlus,
-  Save,
-  Plus,
-  Pencil,
-  Unlock,
-  Trash2,
-  Boxes,
-  ChevronDown,
-  ChevronUp,
-  X,
-  Upload,
-  History as HistoryIcon,
+  Search, AlertTriangle, UserPlus, Save, Plus, Pencil, Unlock, Trash2, Boxes,
+  ChevronDown, ChevronUp, X, Upload, History as HistoryIcon,
 } from 'lucide-react'
 
 /* =========================================================
@@ -34,21 +17,8 @@ import {
 ========================================================= */
 
 const CATS = [
-  'Laptop',
-  'CPU',
-  'Monitor',
-  'Keyboard',
-  'Mouse',
-  'Printer',
-  'Phone',
-  'Server',
-  'Network Device',
-  'Tablet',
-  'Router',
-  'UPS',
-  'Cable',
-  'SIM Card',
-  'Other',
+  'Laptop', 'CPU', 'Monitor', 'Keyboard', 'Mouse', 'Printer', 'Phone', 'Server',
+  'Network Device', 'Tablet', 'Router', 'UPS', 'Cable', 'SIM Card', 'Other',
 ]
 
 const SIM_PROVIDERS = ['Jio', 'Airtel', 'Vi', 'BSNL', 'Other']
@@ -73,6 +43,28 @@ function useIsMobile(breakpoint = 768) {
 // Sorts ASSET-2 before ASSET-10
 const naturalCompare = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+
+/* ---- Same rules as the Reports page, so numbers always match ---- */
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Warranty ends within the next 90 days
+const isExpiringSoon = (date?: string) => {
+  if (!date) return false
+  const diff = new Date(date).getTime() - Date.now()
+  return diff >= 0 && diff <= 90 * DAY_MS
+}
+
+// Available but not touched for 90+ days
+const isIdle = (a: Asset) =>
+  a.status === 'Available' &&
+  !!a.updatedAt &&
+  Date.now() - new Date(a.updatedAt).getTime() > 90 * DAY_MS
+
+// Purchased more than 3 years ago
+const isOld = (a: Asset) =>
+  !!a.purchase_date &&
+  Date.now() - new Date(a.purchase_date).getTime() > 3 * 365 * DAY_MS
 
 // Reasons shown when unassigning an asset (saved in asset history)
 const UNASSIGN_REASONS = [
@@ -188,39 +180,12 @@ const assetSummary = (a: Asset) => {
 }
 
 const BRANDS = [
-  'Dell',
-  'HP',
-  'Lenovo',
-  'Apple',
-  'Asus',
-  'Acer',
-  'Samsung',
-  'LG',
-  'Cisco',
-  'TP-Link',
-  'Logitech',
-  'Canon',
-  'Epson',
-  'Redmi',
-  'Poco',
-  'OnePlus',
-  'Vivo',
-  'Oppo',
-  'Realme',
-  'Motorola',
-  'Nokia',
-  'Google',
-  'Sony',
-  'Huawei',
+  'Dell', 'HP', 'Lenovo', 'Apple', 'Asus', 'Acer', 'Samsung', 'LG', 'Cisco', 'TP-Link',
+  'Logitech', 'Canon', 'Epson', 'Redmi', 'Poco', 'OnePlus', 'Vivo', 'Oppo', 'Realme',
+  'Motorola', 'Nokia', 'Google', 'Sony', 'Huawei',
 ]
 
-const STATUS_LIST = [
-  'Available',
-  'Assigned',
-  'Under Repair',
-  'Damaged',
-  'Retired',
-]
+const STATUS_LIST = ['Available', 'Assigned', 'Under Repair', 'Damaged', 'Retired']
 
 const STATUS_COLOR: Record<string, string> = {
   Available: '#2e7d32',
@@ -290,6 +255,7 @@ type Asset = {
   sim_number?: string
   sim_provider?: string
   specs?: Record<string, string>
+  updatedAt?: string // used for the "idle" calculation
 }
 
 type HistoryItem = {
@@ -346,6 +312,20 @@ const smallActionButton: React.CSSProperties = {
   fontSize: '0.7rem',
 }
 
+const toolButtonStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '8px 12px',
+  borderRadius: 5,
+  border: '1px solid var(--border)',
+  background: 'var(--bg-card)',
+  color: 'var(--text-sub)',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  cursor: 'pointer',
+}
+
 const labelStyle: React.CSSProperties = {
   fontSize: '0.65rem',
   color: 'var(--text-muted)',
@@ -386,22 +366,9 @@ const smallLabelStyle: React.CSSProperties = {
    FORM GROUP
 ========================================================= */
 
-function FormGroup({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
+function FormGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 5,
-        marginBottom: '0.9rem',
-      }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: '0.9rem' }}>
       <label
         style={{
           fontSize: '0.7rem',
@@ -437,11 +404,7 @@ function SpecInput({
     const list = value && !options.includes(value) ? [value, ...options] : options
 
     return (
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={inputStyle}
-      >
+      <select value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
         <option value="">— Select —</option>
         {list.map((o) => (
           <option key={o} value={o}>
@@ -456,9 +419,7 @@ function SpecInput({
     <input
       type={field.type === 'date' ? 'date' : 'text'}
       value={value}
-      onChange={(e) =>
-        onChange(field.digits ? e.target.value.replace(/\D/g, '') : e.target.value)
-      }
+      onChange={(e) => onChange(field.digits ? e.target.value.replace(/\D/g, '') : e.target.value)}
       placeholder={field.placeholder}
       maxLength={field.digits}
       inputMode={field.digits ? 'numeric' : undefined}
@@ -540,13 +501,7 @@ function AssignForm({
           marginBottom: '1.2rem',
         }}
       >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '0.8rem',
-          }}
-        >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
           <div>
             <span style={labelStyle}>Asset Code</span>
             <p style={valueRedStyle}>{asset.asset_code}</p>
@@ -568,8 +523,7 @@ function AssignForm({
               style={{
                 margin: '3px 0 0',
                 fontSize: '0.8rem',
-                color:
-                  STATUS_COLOR[asset.status || ''] || 'var(--text-muted)',
+                color: STATUS_COLOR[asset.status || ''] || 'var(--text-muted)',
                 fontWeight: 600,
               }}
             >
@@ -623,14 +577,7 @@ function AssignForm({
         </div>
       )}
 
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          justifyContent: 'flex-end',
-          marginTop: '1rem',
-        }}
-      >
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: '1rem' }}>
         <button type="button" onClick={onCancel} style={secondaryButtonStyle}>
           Cancel
         </button>
@@ -686,10 +633,7 @@ function ReplaceCategoryForm({
     }
 
     if (find === replace) {
-      setMsg({
-        type: 'error',
-        text: 'Find and Replace category cannot be same.',
-      })
+      setMsg({ type: 'error', text: 'Find and Replace category cannot be same.' })
       return
     }
 
@@ -698,18 +642,14 @@ function ReplaceCategoryForm({
 
       await api.patch('/assets/find-replace', { find, replace })
 
-      setMsg({
-        type: 'success',
-        text: `All "${find}" assets changed to "${replace}".`,
-      })
+      setMsg({ type: 'success', text: `All "${find}" assets changed to "${replace}".` })
 
       onSuccess()
       onCancel()
     } catch (error: any) {
       setMsg({
         type: 'error',
-        text:
-          error?.response?.data?.error || 'Category replacement failed.',
+        text: error?.response?.data?.error || 'Category replacement failed.',
       })
     } finally {
       setSaving(false)
@@ -719,12 +659,7 @@ function ReplaceCategoryForm({
   return (
     <form onSubmit={submit}>
       <FormGroup label="Find Category">
-        <select
-          required
-          value={find}
-          onChange={(e) => setFind(e.target.value)}
-          style={inputStyle}
-        >
+        <select required value={find} onChange={(e) => setFind(e.target.value)} style={inputStyle}>
           <option value="">— Select Category —</option>
 
           {CATS.map((category) => (
@@ -736,12 +671,7 @@ function ReplaceCategoryForm({
       </FormGroup>
 
       <FormGroup label="Replace With Category">
-        <select
-          required
-          value={replace}
-          onChange={(e) => setReplace(e.target.value)}
-          style={inputStyle}
-        >
+        <select required value={replace} onChange={(e) => setReplace(e.target.value)} style={inputStyle}>
           <option value="">— Select Category —</option>
 
           {CATS.map((category) => (
@@ -766,13 +696,7 @@ function ReplaceCategoryForm({
         This will change the category of all matching assets.
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: 10,
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <button type="button" onClick={onCancel} style={secondaryButtonStyle}>
           Cancel
         </button>
@@ -821,12 +745,8 @@ function AssetForm({
     category: existing?.category || '',
     brand: existing?.brand || '',
     model: existing?.model || '',
-    purchase_date: existing?.purchase_date
-      ? existing.purchase_date.split('T')[0]
-      : '',
-    warranty_until: existing?.warranty_until
-      ? existing.warranty_until.split('T')[0]
-      : '',
+    purchase_date: existing?.purchase_date ? existing.purchase_date.split('T')[0] : '',
+    warranty_until: existing?.warranty_until ? existing.warranty_until.split('T')[0] : '',
     location: existing?.location || '',
     notes: existing?.notes || '',
     status: existing?.status || 'Available',
@@ -840,9 +760,7 @@ function AssetForm({
   )
 
   const [customBrand, setCustomBrand] = useState(
-    existing?.brand && !BRANDS.includes(existing.brand)
-      ? existing.brand
-      : ''
+    existing?.brand && !BRANDS.includes(existing.brand) ? existing.brand : ''
   )
 
   const [rows, setRows] = useState<AssetRow[]>(
@@ -856,15 +774,7 @@ function AssetForm({
             specs: { ...(existing.specs || {}) },
           },
         ]
-      : [
-          {
-            asset_code: '',
-            name: '',
-            serial_no: '',
-            sim_number: '',
-            specs: {},
-          },
-        ]
+      : [{ asset_code: '', name: '', serial_no: '', sim_number: '', specs: {} }]
   )
 
   const [saving, setSaving] = useState(false)
@@ -878,9 +788,7 @@ function AssetForm({
     if (!num) return undefined
     const selfId = existing?._id || existing?.id
 
-    return allAssets.find(
-      (a) => a.sim_number === num && (a._id || a.id) !== selfId
-    )
+    return allAssets.find((a) => a.sim_number === num && (a._id || a.id) !== selfId)
   }
 
   // Guess provider from the first 4 digits using already-saved SIMs
@@ -889,10 +797,7 @@ function AssetForm({
     const prefix = num.slice(0, 4)
 
     const match = allAssets.find(
-      (a) =>
-        a.category === 'SIM Card' &&
-        a.sim_provider &&
-        a.sim_number?.startsWith(prefix)
+      (a) => a.category === 'SIM Card' && a.sim_provider && a.sim_number?.startsWith(prefix)
     )
 
     return match?.sim_provider || SIM_SERIES[prefix] || ''
@@ -908,17 +813,12 @@ function AssetForm({
     String((f.perRow ? row.specs[f.key] : shared.specs[f.key]) ?? '').trim()
 
   const updateSharedSpec = (key: string, value: string) => {
-    setShared((prev) => ({
-      ...prev,
-      specs: { ...prev.specs, [key]: value },
-    }))
+    setShared((prev) => ({ ...prev, specs: { ...prev.specs, [key]: value } }))
   }
 
   const updateRowSpec = (index: number, key: string, value: string) => {
     setRows((prev) =>
-      prev.map((row, i) =>
-        i === index ? { ...row, specs: { ...row.specs, [key]: value } } : row
-      )
+      prev.map((row, i) => (i === index ? { ...row, specs: { ...row.specs, [key]: value } } : row))
     )
   }
 
@@ -937,33 +837,15 @@ function AssetForm({
   /* ---------------- state updaters ---------------- */
 
   const updateShared = (field: keyof SharedAsset, value: string) => {
-    setShared((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+    setShared((prev) => ({ ...prev, [field]: value }))
   }
 
-  const updateRow = (
-    index: number,
-    field: keyof AssetRow,
-    value: string
-  ) => {
-    setRows((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
-    )
+  const updateRow = (index: number, field: keyof AssetRow, value: string) => {
+    setRows((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)))
   }
 
   const addRow = () => {
-    setRows((prev) => [
-      ...prev,
-      {
-        asset_code: '',
-        name: '',
-        serial_no: '',
-        sim_number: '',
-        specs: {},
-      },
-    ])
+    setRows((prev) => [...prev, { asset_code: '', name: '', serial_no: '', sim_number: '', specs: {} }])
   }
 
   const removeRow = (index: number) => {
@@ -987,36 +869,23 @@ function AssetForm({
       shared.warranty_until &&
       new Date(shared.purchase_date) > new Date(shared.warranty_until)
     ) {
-      setMsg({
-        type: 'error',
-        text: 'Warranty date must be after purchase date.',
-      })
+      setMsg({ type: 'error', text: 'Warranty date must be after purchase date.' })
       return
     }
 
-        for (let i = 0; i < rows.length; i++) {
+    for (let i = 0; i < rows.length; i++) {
       // SIM: auto-generate the code from the SIM number
-      if (
-        isSim &&
-        !rows[i].asset_code.trim() &&
-        /^\d{10}$/.test(rows[i].sim_number.trim())
-      ) {
+      if (isSim && !rows[i].asset_code.trim() && /^\d{10}$/.test(rows[i].sim_number.trim())) {
         rows[i].asset_code = `SIM-${rows[i].sim_number.trim()}`
       }
 
       if (!rows[i].asset_code.trim()) {
-        setMsg({
-          type: 'error',
-          text: `Row ${i + 1}: Asset Code is required.`,
-        })
+        setMsg({ type: 'error', text: `Row ${i + 1}: Asset Code is required.` })
         return
       }
 
       if (!rows[i].name.trim()) {
-        setMsg({
-          type: 'error',
-          text: `Row ${i + 1}: Asset Name is required.`,
-        })
+        setMsg({ type: 'error', text: `Row ${i + 1}: Asset Name is required.` })
         return
       }
 
@@ -1024,10 +893,7 @@ function AssetForm({
         const num = rows[i].sim_number.trim()
 
         if (!/^\d{10}$/.test(num)) {
-          setMsg({
-            type: 'error',
-            text: `Row ${i + 1}: SIM Number must be 10 digits.`,
-          })
+          setMsg({ type: 'error', text: `Row ${i + 1}: SIM Number must be 10 digits.` })
           return
         }
 
@@ -1042,9 +908,7 @@ function AssetForm({
         }
 
         // Duplicate inside the same form
-        const sameInForm = rows.findIndex(
-          (r, idx) => idx !== i && r.sim_number.trim() === num
-        )
+        const sameInForm = rows.findIndex((r, idx) => idx !== i && r.sim_number.trim() === num)
 
         if (sameInForm !== -1) {
           setMsg({
@@ -1060,18 +924,12 @@ function AssetForm({
         const v = getSpec(f, rows[i])
 
         if (f.required && !v) {
-          setMsg({
-            type: 'error',
-            text: `Row ${i + 1}: ${f.label} is required.`,
-          })
+          setMsg({ type: 'error', text: `Row ${i + 1}: ${f.label} is required.` })
           return
         }
 
         if (v && f.digits && !new RegExp(`^\\d{${f.digits}}$`).test(v)) {
-          setMsg({
-            type: 'error',
-            text: `Row ${i + 1}: ${f.label} must be ${f.digits} digits.`,
-          })
+          setMsg({ type: 'error', text: `Row ${i + 1}: ${f.label} must be ${f.digits} digits.` })
           return
         }
       }
@@ -1080,9 +938,7 @@ function AssetForm({
     try {
       setSaving(true)
 
-      /* =================================================
-         EDIT
-      ================================================= */
+      /* ---------------- EDIT ---------------- */
 
       if (existing) {
         const assetId = existing._id || existing.id
@@ -1093,26 +949,17 @@ function AssetForm({
 
         const payload = buildPayload(rows[0])
 
-        /*
-          assigned_to for the EXISTING asset is not changed
-          from this form. Assignment for it is handled
-          separately via Assign / Unassign buttons.
-        */
+        // assigned_to for the EXISTING asset is not changed from this form.
+        // Assignment is handled separately via Assign / Unassign buttons.
         delete (payload as any).assigned_to
 
         await api.patch(`/assets/${assetId}`, payload)
 
-        /*
-          Extra rows added via "Add Another Asset" while
-          editing are brand-new assets — create them, and
-          assign them to the selected employee if chosen.
-        */
+        // Extra rows added while editing are brand-new assets.
         const extraRows = rows.slice(1)
 
         if (extraRows.length > 0) {
-                    const sortedExtra = [...extraRows].sort((a, b) =>
-            naturalCompare(a.asset_code, b.asset_code)
-          )
+          const sortedExtra = [...extraRows].sort((a, b) => naturalCompare(a.asset_code, b.asset_code))
 
           for (const row of sortedExtra) {
             await api.post('/assets', {
@@ -1132,12 +979,10 @@ function AssetForm({
         })
       }
 
-      /* =================================================
-         ADD / BULK ADD
-      ================================================= */
+      /* ---------------- ADD / BULK ADD ---------------- */
 
       else {
-                const payloads = rows
+        const payloads = rows
           .map((row) => ({
             ...buildPayload(row),
             status: shared.assigned_to ? 'Assigned' : shared.status,
@@ -1153,9 +998,7 @@ function AssetForm({
         let employeeName = ''
 
         if (shared.assigned_to) {
-          const employee = people.find(
-            (emp) => (emp._id || emp.id) === shared.assigned_to
-          )
+          const employee = people.find((emp) => (emp._id || emp.id) === shared.assigned_to)
 
           employeeName = employee?.name || employee?.full_name || ''
         }
@@ -1173,10 +1016,7 @@ function AssetForm({
     } catch (error: any) {
       setMsg({
         type: 'error',
-        text:
-          error?.response?.data?.error ||
-          error?.message ||
-          'Failed to save asset(s).',
+        text: error?.response?.data?.error || error?.message || 'Failed to save asset(s).',
       })
     } finally {
       setSaving(false)
@@ -1191,17 +1031,11 @@ function AssetForm({
 
       <FormGroup
         label={
-          existing && rows.length === 1
-            ? 'Assigned To'
-            : 'Assign New Asset(s) To (Optional)'
+          existing && rows.length === 1 ? 'Assigned To' : 'Assign New Asset(s) To (Optional)'
         }
       >
         <select
-          value={
-            existing && rows.length === 1
-              ? existing.assigned_to || ''
-              : shared.assigned_to
-          }
+          value={existing && rows.length === 1 ? existing.assigned_to || '' : shared.assigned_to}
           disabled={!!existing && rows.length === 1}
           onChange={(e) => updateShared('assigned_to', e.target.value)}
           style={{
@@ -1227,49 +1061,23 @@ function AssetForm({
         </select>
 
         {existing && rows.length === 1 && (
-          <span
-            style={{
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              marginTop: 4,
-              display: 'block',
-            }}
-          >
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
             Use Assign / Unassign buttons in the table to change this.
           </span>
         )}
 
         {existing && rows.length > 1 && (
-          <span
-            style={{
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              marginTop: 4,
-              display: 'block',
-            }}
-          >
-            This applies only to the newly added asset(s) below — not the
-            existing asset (code above).
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+            This applies only to the newly added asset(s) below — not the existing asset (code above).
           </span>
         )}
       </FormGroup>
 
-      <div
-        style={{
-          borderBottom: '1px solid var(--border)',
-          marginBottom: '1rem',
-        }}
-      />
+      <div style={{ borderBottom: '1px solid var(--border)', marginBottom: '1rem' }} />
 
       {/* CATEGORY + STATUS */}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: '1rem',
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem' }}>
         <FormGroup label="Category *">
           <select
             required
@@ -1315,20 +1123,13 @@ function AssetForm({
             fontSize: '0.75rem',
           }}
         >
-          SIM Card selected — scroll down to <b>Asset Details</b> and enter
-          the <b>SIM Number</b>.
+          SIM Card selected — scroll down to <b>Asset Details</b> and enter the <b>SIM Number</b>.
         </div>
       )}
 
       {/* BRAND + MODEL */}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: '1rem',
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem' }}>
         <FormGroup label="Brand">
           <select
             value={isOtherBrand ? 'Other' : shared.brand}
@@ -1394,15 +1195,9 @@ function AssetForm({
             ))}
           </select>
 
-          <span
-            style={{
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              marginTop: 2,
-            }}
-          >
-            Auto-selected from the SIM number when a similar series is already
-            saved. You can change it manually.
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>
+            Auto-selected from the SIM number when a similar series is already saved. You can change it
+            manually.
           </span>
         </FormGroup>
       )}
@@ -1410,18 +1205,9 @@ function AssetForm({
       {/* CATEGORY SPECS (shared) */}
 
       {sharedFields.length > 0 && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-            gap: '1rem',
-          }}
-        >
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem' }}>
           {sharedFields.map((f) => (
-            <FormGroup
-              key={f.key}
-              label={f.label + (f.required ? ' *' : '')}
-            >
+            <FormGroup key={f.key} label={f.label + (f.required ? ' *' : '')}>
               <SpecInput
                 field={f}
                 value={shared.specs[f.key] || ''}
@@ -1434,13 +1220,7 @@ function AssetForm({
 
       {/* DATES */}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: '1rem',
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem' }}>
         <FormGroup label="Purchase Date">
           <input
             type="date"
@@ -1477,21 +1257,12 @@ function AssetForm({
         <textarea
           value={shared.notes}
           onChange={(e) => updateShared('notes', e.target.value)}
-          style={{
-            ...inputStyle,
-            minHeight: 70,
-            resize: 'vertical',
-          }}
+          style={{ ...inputStyle, minHeight: 70, resize: 'vertical' }}
           placeholder="Additional notes..."
         />
       </FormGroup>
 
-      <div
-        style={{
-          borderBottom: '1px solid var(--border)',
-          margin: '1rem 0',
-        }}
-      />
+      <div style={{ borderBottom: '1px solid var(--border)', margin: '1rem 0' }} />
 
       {/* ASSET DETAILS */}
 
@@ -1530,16 +1301,12 @@ function AssetForm({
             }}
           >
             <div>
-                            <label style={smallLabelStyle}>
-                Asset Code {isSim ? '(auto for SIM)' : '*'}
-              </label>
+              <label style={smallLabelStyle}>Asset Code {isSim ? '(auto for SIM)' : '*'}</label>
 
               <input
                 required={!isSim}
                 value={row.asset_code}
-                onChange={(e) =>
-                  updateRow(index, 'asset_code', e.target.value)
-                }
+                onChange={(e) => updateRow(index, 'asset_code', e.target.value)}
                 placeholder={isSim ? 'Leave empty → SIM-98XXXXXXXX' : 'ASSET-001'}
                 style={inputStyle}
               />
@@ -1562,9 +1329,7 @@ function AssetForm({
 
               <input
                 value={row.serial_no}
-                onChange={(e) =>
-                  updateRow(index, 'serial_no', e.target.value)
-                }
+                onChange={(e) => updateRow(index, 'serial_no', e.target.value)}
                 placeholder="Serial number"
                 style={inputStyle}
               />
@@ -1598,33 +1363,16 @@ function AssetForm({
                   !dupSim &&
                   !detectProvider(row.sim_number) &&
                   !shared.sim_provider && (
-                    <span
-                      style={{
-                        display: 'block',
-                        marginTop: 4,
-                        fontSize: '0.68rem',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      New series ({row.sim_number.slice(0, 4)}) — select the
-                      SIM Provider manually above. It will be remembered next
-                      time.
+                    <span style={{ display: 'block', marginTop: 4, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                      New series ({row.sim_number.slice(0, 4)}) — select the SIM Provider manually above. It
+                      will be remembered next time.
                     </span>
                   )}
 
                 {dupSim && (
-                  <span
-                    style={{
-                      display: 'block',
-                      marginTop: 4,
-                      fontSize: '0.68rem',
-                      color: '#c62828',
-                    }}
-                  >
+                  <span style={{ display: 'block', marginTop: 4, fontSize: '0.68rem', color: '#c62828' }}>
                     Already used: {dupSim.asset_code} – {dupSim.name}
-                    {dupSim.assigned_to_name
-                      ? ` (${dupSim.assigned_to_name})`
-                      : ''}
+                    {dupSim.assigned_to_name ? ` (${dupSim.assigned_to_name})` : ''}
                   </span>
                 )}
               </div>
@@ -1695,19 +1443,8 @@ function AssetForm({
 
       {/* BUTTONS */}
 
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          justifyContent: 'flex-end',
-        }}
-      >
-        <button
-          type="button"
-          onClick={onCancel}
-          style={secondaryButtonStyle}
-          disabled={saving}
-        >
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <button type="button" onClick={onCancel} style={secondaryButtonStyle} disabled={saving}>
           Cancel
         </button>
 
@@ -1762,10 +1499,7 @@ const similarity = (a: string, b: string) => {
   if (!a || !b) return 0
   if (a === b) return 1
 
-  const dp: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [
-    i,
-    ...Array(b.length).fill(0),
-  ])
+  const dp: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)])
 
   for (let j = 0; j <= b.length; j++) dp[0][j] = j
 
@@ -1849,7 +1583,7 @@ function ImportExcelForm({
   const [importing, setImporting] = useState(false)
   const [progress, setProgress] = useState(0)
 
-  // FIX: use for...of so TypeScript does not narrow `best` to `never`
+  // for...of so TypeScript does not narrow `best` to `never`
   const findPerson = (name: string): Employee | null => {
     const n = normName(name)
     if (!n) return null
@@ -1873,6 +1607,7 @@ function ImportExcelForm({
     try {
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(buf, { type: 'array', cellDates: true })
+
       /* ---- find the best sheet + header row automatically ---- */
 
       let best: {
@@ -1900,18 +1635,10 @@ function ImportExcelForm({
 
           const found = Object.values(colMap)
           const ok =
-            found.includes('Asset Code') &&
-            found.includes('Asset Name') &&
-            found.includes('Category')
+            found.includes('Asset Code') && found.includes('Asset Name') && found.includes('Category')
 
           if (ok && (!best || found.length > best.score)) {
-            best = {
-              sheet: sheetName,
-              headerRow: h,
-              colMap,
-              aoa,
-              score: found.length,
-            }
+            best = { sheet: sheetName, headerRow: h, colMap, aoa, score: found.length }
           }
         }
       }
@@ -1936,9 +1663,7 @@ function ImportExcelForm({
           rec[std] = best!.aoa[i][Number(c)]
         })
 
-        const hasData = Object.values(rec).some(
-          (v) => String(v ?? '').trim() !== ''
-        )
+        const hasData = Object.values(rec).some((v) => String(v ?? '').trim() !== '')
 
         if (hasData) {
           json.push(rec)
@@ -1946,9 +1671,7 @@ function ImportExcelForm({
         }
       }
 
-      setInfo(
-        `Sheet "${best.sheet}" · header row ${best.headerRow + 1} · ${best.score} columns matched`
-      )
+      setInfo(`Sheet "${best.sheet}" · header row ${best.headerRow + 1} · ${best.score} columns matched`)
 
       const get = (r: Record<string, any>, key: string) => {
         const v = r[key]
@@ -1978,14 +1701,11 @@ function ImportExcelForm({
         const warnings: string[] = []
 
         const catRaw = get(r, 'Category')
-        const category =
-          CATS.find((c) => c.toLowerCase() === catRaw.toLowerCase()) || catRaw
-                const simNumber = get(r, 'SIM Number')
+        const category = CATS.find((c) => c.toLowerCase() === catRaw.toLowerCase()) || catRaw
+        const simNumber = get(r, 'SIM Number')
         const code =
           get(r, 'Asset Code') ||
-          (category === 'SIM Card' && /^\d{10}$/.test(simNumber)
-            ? `SIM-${simNumber}`
-            : '')
+          (category === 'SIM Card' && /^\d{10}$/.test(simNumber) ? `SIM-${simNumber}` : '')
         const name = get(r, 'Asset Name')
         const assignedName = get(r, 'Assigned To (Excel name)')
         const existing = code ? codeMap.get(code.toLowerCase()) : undefined
@@ -2013,12 +1733,9 @@ function ImportExcelForm({
             errors.push('SIM Number must be 10 digits')
           } else if (
             simOwners.has(simNumber) &&
-            (simOwners.get(simNumber)!.asset_code || '').toLowerCase() !==
-              code.toLowerCase()
+            (simOwners.get(simNumber)!.asset_code || '').toLowerCase() !== code.toLowerCase()
           ) {
-            errors.push(
-              `SIM already used by ${simOwners.get(simNumber)!.asset_code}`
-            )
+            errors.push(`SIM already used by ${simOwners.get(simNumber)!.asset_code}`)
           } else if (seenSims.has(simNumber)) {
             errors.push('Duplicate SIM in Excel')
           }
@@ -2055,8 +1772,7 @@ function ImportExcelForm({
 
         const statusRaw = get(r, 'Status')
         let status =
-          STATUS_LIST.find((s) => s.toLowerCase() === statusRaw.toLowerCase()) ||
-          'Available'
+          STATUS_LIST.find((s) => s.toLowerCase() === statusRaw.toLowerCase()) || 'Available'
 
         let assignedTo: string | undefined
         let matchedName = ''
@@ -2087,9 +1803,7 @@ function ImportExcelForm({
           existing.assigned_to !== assignedTo &&
           existing.assigned_to_name
         ) {
-          warnings.push(
-            `Reassign: ${existing.assigned_to_name} → ${matchedName}`
-          )
+          warnings.push(`Reassign: ${existing.assigned_to_name} → ${matchedName}`)
         }
 
         return {
@@ -2129,15 +1843,12 @@ function ImportExcelForm({
 
   // In "add only" mode an existing code is an error; in "update" mode it is an update
   const errorsOf = (r: ImportRow) =>
-    r.existing && mode === 'add'
-      ? ['Code already exists in website', ...r.errors]
-      : r.errors
+    r.existing && mode === 'add' ? ['Code already exists in website', ...r.errors] : r.errors
 
-    const validRows = rows
+  const validRows = rows
     .filter((r) => errorsOf(r).length === 0)
-    .sort((a, b) =>
-      naturalCompare(a.payload.asset_code || '', b.payload.asset_code || '')
-    )
+    .sort((a, b) => naturalCompare(a.payload.asset_code || '', b.payload.asset_code || ''))
+
   const errorRows = rows.length - validRows.length
   const toUpdate = validRows.filter((r) => r.existing && mode === 'update').length
   const toCreate = validRows.length - toUpdate
@@ -2183,15 +1894,10 @@ function ImportExcelForm({
     // change the person only when Excel has a matched employee
     if (!special && p.assigned_to && ex.assigned_to !== p.assigned_to) {
       if (ex.assigned_to || ex.status === 'Assigned') {
-        await api.patch(`/assets/${id}/unassign`, {
-          reason: 'Reassigned via Excel import',
-        })
+        await api.patch(`/assets/${id}/unassign`, { reason: 'Reassigned via Excel import' })
       }
 
-      await api.patch(`/assets/${id}/assign`, {
-        employee_id: p.assigned_to,
-        reason: 'Excel import',
-      })
+      await api.patch(`/assets/${id}/assign`, { employee_id: p.assigned_to, reason: 'Excel import' })
     }
   }
 
@@ -2204,16 +1910,14 @@ function ImportExcelForm({
     let ok = 0
     let failed = 0
     const errs: string[] = []
-        const CHUNK = 1 // one at a time keeps the code order
+    const CHUNK = 1 // one at a time keeps the code order
 
     for (let i = 0; i < validRows.length; i += CHUNK) {
       const chunk = validRows.slice(i, i + CHUNK)
 
       const results = await Promise.allSettled(
         chunk.map((r) =>
-          r.existing && mode === 'update'
-            ? updateExisting(r)
-            : api.post('/assets', r.payload)
+          r.existing && mode === 'update' ? updateExisting(r) : api.post('/assets', r.payload)
         )
       )
 
@@ -2262,9 +1966,7 @@ function ImportExcelForm({
     })
   )
 
-  const warnCount = rows.filter(
-    (r) => errorsOf(r).length === 0 && r.warnings.length > 0
-  ).length
+  const warnCount = rows.filter((r) => errorsOf(r).length === 0 && r.warnings.length > 0).length
 
   const shown = rows.filter((r) => {
     if (filter === 'error') return errorsOf(r).length > 0
@@ -2322,14 +2024,7 @@ function ImportExcelForm({
   )
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flex: 1,
-        minHeight: 0,
-      }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* FILE PICKER BAR */}
 
       <div
@@ -2380,13 +2075,8 @@ function ImportExcelForm({
         {rows.length > 0 && (
           <div style={{ fontSize: '0.8rem' }}>
             <b>{fileName}</b> — {rows.length} rows |{' '}
-            <span style={{ color: '#2e7d32', fontWeight: 600 }}>
-              {validRows.length} ready
-            </span>{' '}
-            |{' '}
-            <span style={{ color: '#c62828', fontWeight: 600 }}>
-              {errorRows} errors
-            </span>
+            <span style={{ color: '#2e7d32', fontWeight: 600 }}>{validRows.length} ready</span> |{' '}
+            <span style={{ color: '#c62828', fontWeight: 600 }}>{errorRows} errors</span>
             {mode === 'update' && (
               <>
                 {' '}
@@ -2395,15 +2085,7 @@ function ImportExcelForm({
               </>
             )}
             {info && (
-              <div
-                style={{
-                  fontSize: '0.68rem',
-                  color: 'var(--text-muted)',
-                  marginTop: 2,
-                }}
-              >
-                {info}
-              </div>
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>{info}</div>
             )}
           </div>
         )}
@@ -2422,8 +2104,7 @@ function ImportExcelForm({
             textAlign: 'center',
           }}
         >
-          Upload the import-ready Excel file. You can check every row here
-          before anything is saved.
+          Upload the import-ready Excel file. You can check every row here before anything is saved.
         </div>
       ) : (
         <>
@@ -2469,13 +2150,7 @@ function ImportExcelForm({
           {/* FULL TABLE */}
 
           <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-            <table
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                minWidth: 980,
-              }}
-            >
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
               <thead>
                 <tr>
                   <th style={th}>Row</th>
@@ -2493,12 +2168,7 @@ function ImportExcelForm({
                   <tr>
                     <td
                       colSpan={7}
-                      style={{
-                        ...td,
-                        textAlign: 'center',
-                        padding: '2rem',
-                        color: 'var(--text-muted)',
-                      }}
+                      style={{ ...td, textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}
                     >
                       No rows in this filter.
                     </td>
@@ -2535,23 +2205,13 @@ function ImportExcelForm({
                         {r.payload.asset_code || 'NO CODE'}
                       </td>
 
-                      <td
-                        style={{
-                          ...td,
-                          color: 'var(--text-main)',
-                          fontWeight: 500,
-                        }}
-                      >
+                      <td style={{ ...td, color: 'var(--text-main)', fontWeight: 500 }}>
                         {r.payload.name || '—'}
                       </td>
 
-                      <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                        {r.payload.category || '—'}
-                      </td>
+                      <td style={{ ...td, whiteSpace: 'nowrap' }}>{r.payload.category || '—'}</td>
 
-                      <td style={td}>
-                        {r.matchedName || r.assignedName || '—'}
-                      </td>
+                      <td style={td}>{r.matchedName || r.assignedName || '—'}</td>
 
                       <td style={{ ...td, whiteSpace: 'nowrap' }}>
                         <span
@@ -2560,12 +2220,8 @@ function ImportExcelForm({
                             fontWeight: 600,
                             padding: '2px 8px',
                             borderRadius: 10,
-                            color:
-                              STATUS_COLOR[r.payload.status] ||
-                              'var(--text-muted)',
-                            background: `${
-                              STATUS_COLOR[r.payload.status] || '#888'
-                            }18`,
+                            color: STATUS_COLOR[r.payload.status] || 'var(--text-muted)',
+                            background: `${STATUS_COLOR[r.payload.status] || '#888'}18`,
                           }}
                         >
                           {r.payload.status}
@@ -2576,19 +2232,13 @@ function ImportExcelForm({
                         style={{
                           ...td,
                           fontWeight: 600,
-                          color: bad
-                            ? '#c62828'
-                            : warn
-                              ? '#e65100'
-                              : '#2e7d32',
+                          color: bad ? '#c62828' : warn ? '#e65100' : '#2e7d32',
                         }}
                       >
                         {bad
                           ? `✖ ${errorsOf(r).join('; ')}`
                           : `${warn ? '⚠' : '✔'} ${
-                              r.existing && mode === 'update'
-                                ? '🔄 UPDATE'
-                                : '➕ NEW'
+                              r.existing && mode === 'update' ? '🔄 UPDATE' : '➕ NEW'
                             }${warn ? ' — ' + r.warnings.join('; ') : ''}`}
                       </td>
                     </tr>
@@ -2604,7 +2254,7 @@ function ImportExcelForm({
 
       <div
         style={{
-                    padding: '14px 20px',
+          padding: '14px 20px',
           borderTop: '1px solid var(--border)',
           display: 'flex',
           flexWrap: 'wrap',
@@ -2613,24 +2263,13 @@ function ImportExcelForm({
           alignItems: 'center',
         }}
       >
-        <span
-          style={{
-            marginRight: 'auto',
-            fontSize: '0.75rem',
-            color: 'var(--text-muted)',
-          }}
-        >
+        <span style={{ marginRight: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           {mode === 'update'
             ? 'Existing codes are updated (details + assigned person). Empty Excel cells never erase data.'
             : 'Only green (ready) rows will be added. Existing codes are skipped.'}
         </span>
 
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={importing}
-          style={secondaryButtonStyle}
-        >
+        <button type="button" onClick={onCancel} disabled={importing} style={secondaryButtonStyle}>
           Close
         </button>
 
@@ -2645,15 +2284,9 @@ function ImportExcelForm({
             padding: '8px 18px',
             borderRadius: 5,
             border: 'none',
-            background:
-              importing || validRows.length === 0
-                ? '#aaa'
-                : 'var(--red-primary)',
+            background: importing || validRows.length === 0 ? '#aaa' : 'var(--red-primary)',
             color: '#fff',
-            cursor:
-              importing || validRows.length === 0
-                ? 'not-allowed'
-                : 'pointer',
+            cursor: importing || validRows.length === 0 ? 'not-allowed' : 'pointer',
             fontSize: '0.8rem',
             fontWeight: 600,
           }}
@@ -2676,48 +2309,30 @@ function ImportExcelForm({
 
 export default function AdminAssets() {
   const isMobile = useIsMobile()
-  /* =======================================================
-     DATA
-  ======================================================= */
+
+  /* ======================= DATA ======================= */
 
   const [allAssets, setAllAssets] = useState<Asset[]>([])
-
   const [people, setPeople] = useState<Employee[]>([])
 
-  const [stats, setStats] = useState({
-    total: 0,
-    available: 0,
-    assigned: 0,
-    repair: 0,
-  })
+  const [stats, setStats] = useState({ total: 0, available: 0, assigned: 0, repair: 0 })
 
-  /* =======================================================
-     UI
-  ======================================================= */
+  /* ======================= UI ======================= */
 
   const [msg, setMsg] = useState<Message | null>(null)
-
   const [loading, setLoading] = useState(false)
-
   const [showAdd, setShowAdd] = useState(false)
-
   const [editAsset, setEditAsset] = useState<Asset | null>(null)
-
   const [assignAsset, setAssignAsset] = useState<Asset | null>(null)
-
   const [showReplace, setShowReplace] = useState(false)
-
   const [showImport, setShowImport] = useState(false)
-
   const [unassignConfirm, setUnassignConfirm] = useState<string | null>(null)
 
   // Unassign reason (saved in asset history)
   const [unassignReason, setUnassignReason] = useState(UNASSIGN_REASONS[0])
   const [unassignOther, setUnassignOther] = useState('')
 
-  /* =======================================================
-     ASSET HISTORY
-  ======================================================= */
+  /* ======================= ASSET HISTORY ======================= */
 
   const [historyAsset, setHistoryAsset] = useState<Asset | null>(null)
   const [history, setHistory] = useState<HistoryItem[]>([])
@@ -2729,9 +2344,7 @@ export default function AdminAssets() {
     setHistoryLoading(true)
 
     try {
-      const { data } = await api.get(
-        `/assets/${asset._id || asset.id}/history`
-      )
+      const { data } = await api.get(`/assets/${asset._id || asset.id}/history`)
       setHistory(data.history || [])
     } catch {
       setHistory([])
@@ -2758,10 +2371,9 @@ export default function AdminAssets() {
     }
   }
 
-  /* =======================================================
-     SCROLL POSITION (fix: table jumping to top after
-     edit/assign/unassign/delete actions trigger a reload)
-  ======================================================= */
+  /* ======================= SCROLL POSITION =======================
+     Fix: table jumping to top after edit/assign/unassign/delete
+  ================================================================ */
 
   const scrollYRef = useRef(0)
 
@@ -2770,21 +2382,14 @@ export default function AdminAssets() {
   }
 
   const restoreScroll = () => {
-    // Wait a tick so the DOM has re-rendered with the
-    // refreshed data before we scroll back into place.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        window.scrollTo({
-          top: scrollYRef.current,
-          behavior: 'auto',
-        })
+        window.scrollTo({ top: scrollYRef.current, behavior: 'auto' })
       })
     })
   }
 
-  /* =======================================================
-     FILTERS
-  ======================================================= */
+  /* ======================= FILTERS ======================= */
 
   const [statusF, setStatusF] = useState('')
   const [categoryF, setCategoryF] = useState('')
@@ -2792,23 +2397,38 @@ export default function AdminAssets() {
   const [brandF, setBrandF] = useState('')
   const [assignedF, setAssignedF] = useState('')
   const [warrantyF, setWarrantyF] = useState('')
+  const [specialF, setSpecialF] = useState('') // '' | 'expiring' | 'idle' | 'old'
   const [q, setQ] = useState('')
 
-  const [sortBy, setSortBy] = useState<
-    'name' | 'asset_code' | 'status' | 'purchase_date'
-  >('asset_code')
+  const fromReport = useRef(false)
 
+  const [sortBy, setSortBy] = useState<'name' | 'asset_code' | 'status' | 'purchase_date'>('asset_code')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
-  /* =======================================================
-     EXPAND / COLLAPSE
-  ======================================================= */
+  // Read the filters sent by the Reports page links
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+
+    const status = p.get('status')
+    const category = p.get('category')
+
+    let special = ''
+    if (p.get('warranty') === 'expiring') special = 'expiring'
+    else if (p.get('idle')) special = 'idle'
+    else if (p.get('age')) special = 'old'
+
+    if (status && STATUS_LIST.includes(status)) setStatusF(status)
+    if (category) setCategoryF(category)
+    if (special) setSpecialF(special)
+
+    if (status || category || special) fromReport.current = true
+  }, [])
+
+  /* ======================= EXPAND / COLLAPSE ======================= */
 
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set())
 
-  /* =======================================================
-     LOAD ASSETS
-  ======================================================= */
+  /* ======================= LOAD ASSETS ======================= */
 
   const load = async () => {
     setLoading(true)
@@ -2835,138 +2455,83 @@ export default function AdminAssets() {
         calculateStats(assets)
       }
     } catch (error: any) {
-      setMsg({
-        type: 'error',
-        text: error?.response?.data?.error || 'Failed to load assets.',
-      })
+      setMsg({ type: 'error', text: error?.response?.data?.error || 'Failed to load assets.' })
 
       setAllAssets([])
-
-      setStats({
-        total: 0,
-        available: 0,
-        assigned: 0,
-        repair: 0,
-      })
+      setStats({ total: 0, available: 0, assigned: 0, repair: 0 })
     } finally {
       setLoading(false)
     }
   }
 
-  /* =======================================================
-     CALCULATE STATS
-  ======================================================= */
+  /* ======================= CALCULATE STATS ======================= */
 
   const calculateStats = (assets: Asset[]) => {
     const total = assets.length
-
-    const available = assets.filter(
-      (asset) => asset.status === 'Available'
-    ).length
-
-    const assigned = assets.filter(
-      (asset) => asset.status === 'Assigned'
-    ).length
-
+    const available = assets.filter((asset) => asset.status === 'Available').length
+    const assigned = assets.filter((asset) => asset.status === 'Assigned').length
     const repair = assets.filter(
-      (asset) =>
-        asset.status === 'Under Repair' || asset.status === 'Damaged'
+      (asset) => asset.status === 'Under Repair' || asset.status === 'Damaged'
     ).length
 
     setStats({ total, available, assigned, repair })
   }
 
-  /* =======================================================
-     LOAD EMPLOYEES
-  ======================================================= */
+  /* ======================= LOAD EMPLOYEES ======================= */
 
   const loadPeople = async () => {
     try {
       const { data } = await api.get('/employees')
 
-      const empList = Array.isArray(data?.employees)
-        ? data.employees
-        : Array.isArray(data)
-          ? data
-          : []
-
+      const empList = Array.isArray(data?.employees) ? data.employees : Array.isArray(data) ? data : []
       const adminList = Array.isArray(data?.admins) ? data.admins : []
 
-      /*
-        Combine employees + admins so assets
-        can be assigned to either.
-      */
+      // Combine employees + admins so assets can be assigned to either.
       setPeople([
-        ...empList.map((e: any) => ({
-          ...e,
-          kind: 'Employee' as const,
-        })),
-        ...adminList.map((a: any) => ({
-          ...a,
-          kind: 'Admin' as const,
-        })),
+        ...empList.map((e: any) => ({ ...e, kind: 'Employee' as const })),
+        ...adminList.map((a: any) => ({ ...a, kind: 'Admin' as const })),
       ])
     } catch (error) {
       console.error('Failed to load people:', error)
-
       setPeople([])
     }
   }
 
-  /* =======================================================
-     INITIAL LOAD
-  ======================================================= */
+  /* ======================= INITIAL LOAD ======================= */
 
   useEffect(() => {
     load()
     loadPeople()
   }, [])
 
-  /* =======================================================
-     AUTO HIDE MESSAGE
-  ======================================================= */
+  /* ======================= AUTO HIDE MESSAGE ======================= */
 
   useEffect(() => {
     if (!msg) return
 
-    const timer = setTimeout(() => {
-      setMsg(null)
-    }, 4000)
+    const timer = setTimeout(() => setMsg(null), 4000)
 
     return () => clearTimeout(timer)
   }, [msg])
 
-  /* =======================================================
-     FILTER OPTIONS
-  ======================================================= */
+  /* ======================= FILTER OPTIONS ======================= */
 
   const filterCategories = useMemo(
-    () =>
-      Array.from(
-        new Set(allAssets.map((asset) => asset.category).filter(Boolean))
-      ).sort() as string[],
+    () => Array.from(new Set(allAssets.map((a) => a.category).filter(Boolean))).sort() as string[],
     [allAssets]
   )
 
   const filterLocations = useMemo(
-    () =>
-      Array.from(
-        new Set(allAssets.map((asset) => asset.location).filter(Boolean))
-      ).sort() as string[],
+    () => Array.from(new Set(allAssets.map((a) => a.location).filter(Boolean))).sort() as string[],
     [allAssets]
   )
 
   const filterBrands = useMemo(
-    () =>
-      Array.from(
-        new Set(allAssets.map((asset) => asset.brand).filter(Boolean))
-      ).sort() as string[],
+    () => Array.from(new Set(allAssets.map((a) => a.brand).filter(Boolean))).sort() as string[],
     [allAssets]
   )
 
-  /* =======================================================
-     WARRANTY
-  ======================================================= */
+  /* ======================= WARRANTY ======================= */
 
   const isWarrantyExpired = (date?: string) => {
     if (!date) return false
@@ -2980,26 +2545,13 @@ export default function AdminAssets() {
     return warranty < today
   }
 
-  /* =======================================================
-     FILTER ASSETS
-  ======================================================= */
+  /* ======================= FILTER ASSETS ======================= */
 
   const filteredAssets = useMemo(() => {
     return allAssets.filter((asset) => {
-      /* STATUS */
-
       if (statusF && asset.status !== statusF) return false
-
-      /* CATEGORY */
-
       if (categoryF && asset.category !== categoryF) return false
-
-      /* LOCATION */
-
       if (locationF && asset.location !== locationF) return false
-
-      /* BRAND */
-
       if (brandF && asset.brand !== brandF) return false
 
       /* ASSIGNMENT */
@@ -3007,28 +2559,24 @@ export default function AdminAssets() {
       const assigned = !!(asset.assigned_to || asset.assigned_to_name)
 
       if (assignedF === 'Assigned' && !assigned) return false
-
       if (assignedF === 'Not Assigned' && assigned) return false
 
       /* WARRANTY */
 
       if (warrantyF) {
         const hasWarranty = !!asset.warranty_until
-
         const expired = isWarrantyExpired(asset.warranty_until)
 
-        if (warrantyF === 'active' && (!hasWarranty || expired)) {
-          return false
-        }
-
-        if (warrantyF === 'expired' && (!hasWarranty || !expired)) {
-          return false
-        }
-
-        if (warrantyF === 'none' && hasWarranty) {
-          return false
-        }
+        if (warrantyF === 'active' && (!hasWarranty || expired)) return false
+        if (warrantyF === 'expired' && (!hasWarranty || !expired)) return false
+        if (warrantyF === 'none' && hasWarranty) return false
       }
+
+      /* SPECIAL (report cards) */
+
+      if (specialF === 'expiring' && !isExpiringSoon(asset.warranty_until)) return false
+      if (specialF === 'idle' && !isIdle(asset)) return false
+      if (specialF === 'old' && !isOld(asset)) return false
 
       /* SEARCH */
 
@@ -3058,22 +2606,11 @@ export default function AdminAssets() {
 
       return true
     })
-  }, [
-    allAssets,
-    statusF,
-    categoryF,
-    locationF,
-    brandF,
-    assignedF,
-    warrantyF,
-    q,
-  ])
+  }, [allAssets, statusF, categoryF, locationF, brandF, assignedF, warrantyF, specialF, q])
 
-  /* =======================================================
-     SORT ASSETS
-  ======================================================= */
+  /* ======================= SORT ASSETS ======================= */
 
-    const sortedAssets = useMemo(() => {
+  const sortedAssets = useMemo(() => {
     const list = [...filteredAssets]
     const dir = sortOrder === 'asc' ? 1 : -1
 
@@ -3090,35 +2627,43 @@ export default function AdminAssets() {
     return list
   }, [filteredAssets, sortBy, sortOrder])
 
-  /* =======================================================
-     GROUP ASSETS
-  ======================================================= */
+  /* ======================= GROUP ASSETS ======================= */
 
   const groupedAssets = useMemo(() => {
-    return sortedAssets.reduce(
-      (result: Record<string, Asset[]>, asset) => {
-        const category = asset.category || 'Uncategorized'
+    return sortedAssets.reduce((result: Record<string, Asset[]>, asset) => {
+      const category = asset.category || 'Uncategorized'
 
-        if (!result[category]) {
-          result[category] = []
-        }
+      if (!result[category]) {
+        result[category] = []
+      }
 
-        result[category].push(asset)
+      result[category].push(asset)
 
-        return result
-      },
-      {}
-    )
+      return result
+    }, {})
   }, [sortedAssets])
 
-  const categories = useMemo(
-    () => Object.keys(groupedAssets).sort(),
-    [groupedAssets]
+  const categories = useMemo(() => Object.keys(groupedAssets).sort(), [groupedAssets])
+
+  // Counts for the extra cards (same rules as the Reports page)
+  const extraStats = useMemo(
+    () => ({
+      expiring: allAssets.filter((a) => isExpiringSoon(a.warranty_until)).length,
+      idle: allAssets.filter(isIdle).length,
+      old: allAssets.filter(isOld).length,
+    }),
+    [allAssets]
   )
 
-  /* =======================================================
-     CATEGORY TOGGLE / EXPAND / COLLAPSE
-  ======================================================= */
+  // Coming from a report link: open all categories so the results are visible
+  useEffect(() => {
+    if (fromReport.current && categories.length > 0) {
+      setExpandedCats(new Set(categories))
+      fromReport.current = false
+    }
+  }, [categories])
+
+  /* ======================= CATEGORY TOGGLE ======================= */
 
   const toggleCategory = (category: string) => {
     setExpandedCats((previous) => {
@@ -3134,17 +2679,10 @@ export default function AdminAssets() {
     })
   }
 
-  const expandAll = () => {
-    setExpandedCats(new Set(categories))
-  }
+  const expandAll = () => setExpandedCats(new Set(categories))
+  const collapseAll = () => setExpandedCats(new Set())
 
-  const collapseAll = () => {
-    setExpandedCats(new Set())
-  }
-
-  /* =======================================================
-     CLEAR FILTERS
-  ======================================================= */
+  /* ======================= CLEAR FILTERS ======================= */
 
   const clearFilters = () => {
     setStatusF('')
@@ -3153,6 +2691,7 @@ export default function AdminAssets() {
     setBrandF('')
     setAssignedF('')
     setWarrantyF('')
+    setSpecialF('')
     setQ('')
     setSortBy('asset_code')
     setSortOrder('asc')
@@ -3160,14 +2699,10 @@ export default function AdminAssets() {
     setExpandedCats(new Set())
   }
 
-  /* =======================================================
-     DELETE
-  ======================================================= */
+  /* ======================= DELETE ======================= */
 
   const handleDelete = async (id: string) => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this asset?'
-    )
+    const confirmed = window.confirm('Are you sure you want to delete this asset?')
 
     if (!confirmed) return
 
@@ -3176,53 +2711,35 @@ export default function AdminAssets() {
     try {
       await api.delete(`/assets/${id}`)
 
-      setMsg({
-        type: 'success',
-        text: 'Asset deleted successfully.',
-      })
+      setMsg({ type: 'success', text: 'Asset deleted successfully.' })
 
       await load()
       restoreScroll()
     } catch (error: any) {
-      setMsg({
-        type: 'error',
-        text: error?.response?.data?.error || 'Delete failed.',
-      })
+      setMsg({ type: 'error', text: error?.response?.data?.error || 'Delete failed.' })
     }
   }
 
-  /* =======================================================
-     ASSIGN
-  ======================================================= */
+  /* ======================= ASSIGN ======================= */
 
   const handleAssign = async (assetId: string, employeeId: string) => {
     captureScroll()
 
     try {
-      await api.patch(`/assets/${assetId}/assign`, {
-        employee_id: employeeId,
-      })
+      await api.patch(`/assets/${assetId}/assign`, { employee_id: employeeId })
 
-      setMsg({
-        type: 'success',
-        text: 'Asset assigned successfully!',
-      })
+      setMsg({ type: 'success', text: 'Asset assigned successfully!' })
 
       setAssignAsset(null)
 
       await load()
       restoreScroll()
     } catch (error: any) {
-      setMsg({
-        type: 'error',
-        text: error?.response?.data?.error || 'Assignment failed.',
-      })
+      setMsg({ type: 'error', text: error?.response?.data?.error || 'Assignment failed.' })
     }
   }
 
-  /* =======================================================
-     UNASSIGN (sends the reason to the backend history)
-  ======================================================= */
+  /* ======================= UNASSIGN ======================= */
 
   const handleUnassign = async (assetId: string, reason: string) => {
     captureScroll()
@@ -3230,24 +2747,16 @@ export default function AdminAssets() {
     try {
       await api.patch(`/assets/${assetId}/unassign`, { reason })
 
-      setMsg({
-        type: 'success',
-        text: 'Asset unassigned successfully!',
-      })
+      setMsg({ type: 'success', text: 'Asset unassigned successfully!' })
 
       await load()
       restoreScroll()
     } catch (error: any) {
-      setMsg({
-        type: 'error',
-        text: error?.response?.data?.error || 'Unassign failed.',
-      })
+      setMsg({ type: 'error', text: error?.response?.data?.error || 'Unassign failed.' })
     }
   }
 
-    /* =======================================================
-     DOWNLOAD ASSETS (generic)
-  ======================================================= */
+  /* ======================= DOWNLOAD ASSETS (generic) ======================= */
 
   const downloadAssets = (list: Asset[], label: string) => {
     if (list.length === 0) {
@@ -3283,9 +2792,7 @@ export default function AdminAssets() {
       }))
 
     const ws = XLSX.utils.json_to_sheet(rows)
-    ws['!cols'] = [16, 22, 14, 14, 16, 18, 14, 14, 40, 14, 20, 16, 14, 14, 25].map(
-      (w) => ({ wch: w })
-    )
+    ws['!cols'] = [16, 22, 14, 14, 16, 18, 14, 14, 40, 14, 20, 16, 14, 14, 25].map((w) => ({ wch: w }))
 
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Assets')
@@ -3293,10 +2800,7 @@ export default function AdminAssets() {
     const today = new Date().toISOString().split('T')[0]
     XLSX.writeFile(wb, `${label}_${today}.xlsx`)
 
-    setMsg({
-      type: 'success',
-      text: `${label.replace(/_/g, ' ')} downloaded (${list.length}).`,
-    })
+    setMsg({ type: 'success', text: `${label.replace(/_/g, ' ')} downloaded (${list.length}).` })
   }
 
   const downloadAll = () => downloadAssets(allAssets, 'All_Assets')
@@ -3313,16 +2817,11 @@ export default function AdminAssets() {
   const downloadCategory = (cat: string, list: Asset[]) =>
     downloadAssets(list, `${cat.replace(/\s+/g, '_')}_Assets`)
 
-  /* =======================================================
-     DOWNLOAD EMPLOYEE-WISE ASSET REPORT
-  ======================================================= */
+  /* ======================= DOWNLOAD EMPLOYEE-WISE ASSET REPORT ======================= */
 
   const handleDownloadReport = () => {
     if (allAssets.length === 0) {
-      setMsg({
-        type: 'error',
-        text: 'No assets available to export.',
-      })
+      setMsg({ type: 'error', text: 'No assets available to export.' })
       return
     }
 
@@ -3353,34 +2852,16 @@ export default function AdminAssets() {
 
     const worksheet = XLSX.utils.json_to_sheet(reportRows)
 
-    worksheet['!cols'] = [
-      { wch: 16 }, // Asset Code
-      { wch: 22 }, // Asset Name
-      { wch: 14 }, // Category
-      { wch: 14 }, // Brand
-      { wch: 16 }, // Model
-      { wch: 18 }, // Serial No
-      { wch: 14 }, // SIM Provider
-      { wch: 14 }, // SIM Number
-      { wch: 40 }, // Specs
-      { wch: 14 }, // Status
-      { wch: 20 }, // Assigned To
-      { wch: 16 }, // Location
-      { wch: 14 }, // Purchase Date
-      { wch: 14 }, // Warranty Until
-      { wch: 25 }, // Notes
-    ]
+    worksheet['!cols'] = [16, 22, 14, 14, 16, 18, 14, 14, 40, 14, 20, 16, 14, 14, 25].map((w) => ({
+      wch: w,
+    }))
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'All Assets')
 
-    /* -----------------------------------------------------
-       EMPLOYEE-WISE SHEET (Grouped by Assigned Employee)
-    ----------------------------------------------------- */
+    /* EMPLOYEE-WISE SHEET (Grouped by Assigned Employee) */
 
-    const assignedAssets = allAssets.filter(
-      (asset) => asset.assigned_to_name
-    )
+    const assignedAssets = allAssets.filter((asset) => asset.assigned_to_name)
 
     const employeeGroups: Record<string, Asset[]> = {}
 
@@ -3421,36 +2902,18 @@ export default function AdminAssets() {
 
     const empWorksheet = XLSX.utils.json_to_sheet(employeeRows)
 
-    empWorksheet['!cols'] = [
-      { wch: 20 }, // Employee Name
-      { wch: 16 }, // Asset Code
-      { wch: 22 }, // Asset Name
-      { wch: 14 }, // Category
-      { wch: 24 }, // Brand/Model
-      { wch: 18 }, // Serial No
-      { wch: 14 }, // Status
-      { wch: 14 }, // Warranty Until
-    ]
+    empWorksheet['!cols'] = [20, 16, 22, 14, 24, 18, 14, 14].map((w) => ({ wch: w }))
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      empWorksheet,
-      'Employee-wise Assets'
-    )
+    XLSX.utils.book_append_sheet(workbook, empWorksheet, 'Employee-wise Assets')
 
     const today = new Date().toISOString().split('T')[0]
 
     XLSX.writeFile(workbook, `Asset_Report_${today}.xlsx`)
 
-    setMsg({
-      type: 'success',
-      text: 'Asset report downloaded successfully.',
-    })
+    setMsg({ type: 'success', text: 'Asset report downloaded successfully.' })
   }
 
-    /* =======================================================
-     ACTION BUTTONS (used in mobile cards)
-  ======================================================= */
+  /* ======================= ACTION BUTTONS (used in mobile cards) ======================= */
 
   const renderActions = (asset: Asset, id: string) => {
     const base: React.CSSProperties = {
@@ -3529,9 +2992,7 @@ export default function AdminAssets() {
     )
   }
 
-  /* =======================================================
-     RESET AFTER ADD / EDIT
-  ======================================================= */
+  /* ======================= RESET AFTER ADD / EDIT ======================= */
 
   const afterSave = async () => {
     captureScroll()
@@ -3539,9 +3000,7 @@ export default function AdminAssets() {
     restoreScroll()
   }
 
-  /* =======================================================
-     MODAL CLOSE HANDLERS
-  ======================================================= */
+  /* ======================= MODAL CLOSE HANDLERS ======================= */
 
   const closeAdd = () => {
     captureScroll()
@@ -3581,13 +3040,11 @@ export default function AdminAssets() {
     restoreScroll()
   }
 
-  /* =======================================================
-     RENDER
-  ======================================================= */
+  /* ======================= RENDER ======================= */
 
   return (
-       <AppLayout role="admin">
-            <style>{`
+    <AppLayout role="admin">
+      <style>{`
         @media (max-width: 768px) {
           [style*="repeat(4,"] {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -3626,36 +3083,47 @@ export default function AdminAssets() {
           display: 'grid',
           gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
           gap: '1rem',
+          marginBottom: '1rem',
+        }}
+      >
+        <StatCard label="Total Assets" value={stats.total} sub="All inventory" color="var(--red-primary)" />
+        <StatCard label="Available" value={stats.available} sub="Ready to assign" color="var(--green)" />
+        <StatCard label="Assigned" value={stats.assigned} sub="With employees" color="#1565c0" />
+        <StatCard label="Repair / Damaged" value={stats.repair} sub="Needs attention" color="var(--orange)" />
+      </div>
+
+      {/* ===================================================
+          EXTRA CARDS (same numbers as the Reports page)
+          click a card to filter, click again to clear
+      =================================================== */}
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: '1rem',
           marginBottom: '1.8rem',
         }}
       >
-        <StatCard
-          label="Total Assets"
-          value={stats.total}
-          sub="All inventory"
-          color="var(--red-primary)"
-        />
-
-        <StatCard
-          label="Available"
-          value={stats.available}
-          sub="Ready to assign"
-          color="var(--green)"
-        />
-
-        <StatCard
-          label="Assigned"
-          value={stats.assigned}
-          sub="With employees"
-          color="#1565c0"
-        />
-
-        <StatCard
-          label="Repair / Damaged"
-          value={stats.repair}
-          sub="Needs attention"
-          color="var(--orange)"
-        />
+        {(
+          [
+            ['expiring', 'Warranty Ending (90d)', 'Renew or plan repair', '#f9a825'],
+            ['idle', 'Idle 90+ Days', 'Available, not used', '#546e7a'],
+            ['old', 'Older Than 3 Yrs', 'Plan replacement', '#6a1b9a'],
+          ] as const
+        ).map(([key, label, sub, color]) => (
+          <div
+            key={key}
+            onClick={() => setSpecialF(specialF === key ? '' : key)}
+            style={{
+              cursor: 'pointer',
+              borderRadius: 8,
+              outline: specialF === key ? `2px solid ${color}` : 'none',
+            }}
+          >
+            <StatCard label={label} value={extraStats[key]} sub={sub} color={color} />
+          </div>
+        ))}
       </div>
 
       {/* ===================================================
@@ -3682,44 +3150,22 @@ export default function AdminAssets() {
             marginBottom: 12,
           }}
         >
-          {/* SEARCH */}
-
-          <div
-            style={{
-              position: 'relative',
-              flex: '1 1 250px',
-              minWidth: 200,
-            }}
-          >
+          <div style={{ position: 'relative', flex: '1 1 250px', minWidth: 200 }}>
             <Search
               size={14}
               color="var(--text-muted)"
-              style={{
-                position: 'absolute',
-                left: 10,
-                top: '50%',
-                transform: 'translateY(-50%)',
-              }}
+              style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}
             />
 
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search asset code, name, serial, SIM..."
-              style={{
-                ...inputStyle,
-                padding: '8px 12px 8px 32px',
-              }}
+              style={{ ...inputStyle, padding: '8px 12px 8px 32px' }}
             />
           </div>
 
-          {/* STATUS */}
-
-          <select
-            value={statusF}
-            onChange={(e) => setStatusF(e.target.value)}
-            style={filterStyle}
-          >
+          <select value={statusF} onChange={(e) => setStatusF(e.target.value)} style={filterStyle}>
             <option value="">All Status</option>
 
             {STATUS_LIST.map((status) => (
@@ -3729,13 +3175,7 @@ export default function AdminAssets() {
             ))}
           </select>
 
-          {/* CATEGORY */}
-
-          <select
-            value={categoryF}
-            onChange={(e) => setCategoryF(e.target.value)}
-            style={filterStyle}
-          >
+          <select value={categoryF} onChange={(e) => setCategoryF(e.target.value)} style={filterStyle}>
             <option value="">All Categories</option>
 
             {filterCategories.map((category) => (
@@ -3745,13 +3185,7 @@ export default function AdminAssets() {
             ))}
           </select>
 
-          {/* LOCATION */}
-
-          <select
-            value={locationF}
-            onChange={(e) => setLocationF(e.target.value)}
-            style={filterStyle}
-          >
+          <select value={locationF} onChange={(e) => setLocationF(e.target.value)} style={filterStyle}>
             <option value="">All Locations</option>
 
             {filterLocations.map((location) => (
@@ -3761,13 +3195,7 @@ export default function AdminAssets() {
             ))}
           </select>
 
-          {/* BRAND */}
-
-          <select
-            value={brandF}
-            onChange={(e) => setBrandF(e.target.value)}
-            style={filterStyle}
-          >
+          <select value={brandF} onChange={(e) => setBrandF(e.target.value)} style={filterStyle}>
             <option value="">All Brands</option>
 
             {filterBrands.map((brand) => (
@@ -3780,51 +3208,33 @@ export default function AdminAssets() {
 
         {/* SECOND FILTER ROW */}
 
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* ASSIGNMENT */}
-
-          <select
-            value={assignedF}
-            onChange={(e) => setAssignedF(e.target.value)}
-            style={filterStyle}
-          >
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={assignedF} onChange={(e) => setAssignedF(e.target.value)} style={filterStyle}>
             <option value="">All Assignment</option>
             <option value="Assigned">Assigned</option>
             <option value="Not Assigned">Not Assigned</option>
           </select>
 
-          {/* WARRANTY */}
-
-          <select
-            value={warrantyF}
-            onChange={(e) => setWarrantyF(e.target.value)}
-            style={filterStyle}
-          >
+          <select value={warrantyF} onChange={(e) => setWarrantyF(e.target.value)} style={filterStyle}>
             <option value="">All Warranty</option>
             <option value="active">Active Warranty</option>
             <option value="expired">Expired Warranty</option>
             <option value="none">No Warranty</option>
           </select>
 
-          {/* SORT BY */}
+          {/* SPECIAL (same as the extra cards) */}
+
+          <select value={specialF} onChange={(e) => setSpecialF(e.target.value)} style={filterStyle}>
+            <option value="">All Assets</option>
+            <option value="expiring">Warranty ending (90 days)</option>
+            <option value="idle">Idle 90+ days</option>
+            <option value="old">Older than 3 years</option>
+          </select>
 
           <select
             value={sortBy}
             onChange={(e) =>
-              setSortBy(
-                e.target.value as
-                  | 'name'
-                  | 'asset_code'
-                  | 'status'
-                  | 'purchase_date'
-              )
+              setSortBy(e.target.value as 'name' | 'asset_code' | 'status' | 'purchase_date')
             }
             style={filterStyle}
           >
@@ -3834,13 +3244,9 @@ export default function AdminAssets() {
             <option value="purchase_date">Sort: Purchase Date</option>
           </select>
 
-          {/* SORT ORDER */}
-
           <button
             type="button"
-            onClick={() =>
-              setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-            }
+            onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
             title={
               sortOrder === 'asc'
                 ? 'Ascending (click for descending)'
@@ -3859,15 +3265,9 @@ export default function AdminAssets() {
               fontSize: '0.75rem',
             }}
           >
-            {sortOrder === 'asc' ? (
-              <ChevronUp size={13} />
-            ) : (
-              <ChevronDown size={13} />
-            )}
+            {sortOrder === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
             {sortOrder === 'asc' ? 'A–Z' : 'Z–A'}
           </button>
-
-          {/* CLEAR */}
 
           <button
             type="button"
@@ -3903,25 +3303,13 @@ export default function AdminAssets() {
             borderTop: '1px solid var(--border)',
           }}
         >
-          {/* FIND & REPLACE */}
-
           <button
             type="button"
             onClick={() => setShowReplace(true)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: 5,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-card)',
-              color: 'var(--text-sub)',
-              fontSize: '0.75rem',
-              cursor: 'pointer',
-            }}
+            style={{ ...toolButtonStyle, fontWeight: 400 }}
           >
             Find & Replace
           </button>
-
-                   {/* DOWNLOAD BUTTONS */}
 
           {(
             [
@@ -3933,53 +3321,16 @@ export default function AdminAssets() {
               ['Employee-wise', handleDownloadReport],
             ] as [string, () => void][]
           ).map(([label, fn]) => (
-            <button
-              key={label}
-              type="button"
-              onClick={fn}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 12px',
-                borderRadius: 5,
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-sub)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
+            <button key={label} type="button" onClick={fn} style={toolButtonStyle}>
               <Boxes size={14} />
               {label}
             </button>
           ))}
 
-          {/* IMPORT EXCEL */}
-
-          <button
-            type="button"
-            onClick={() => setShowImport(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 12px',
-              borderRadius: 5,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-card)',
-              color: 'var(--text-sub)',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
+          <button type="button" onClick={() => setShowImport(true)} style={toolButtonStyle}>
             <Upload size={14} />
             Import Excel
           </button>
-
-          {/* ADD */}
 
           <button
             type="button"
@@ -3995,7 +3346,7 @@ export default function AdminAssets() {
               color: '#fff',
               cursor: 'pointer',
               fontSize: '0.8rem',
-                            fontWeight: 600,
+              fontWeight: 600,
               marginLeft: isMobile ? 0 : 'auto',
               width: isMobile ? '100%' : undefined,
               justifyContent: 'center',
@@ -4025,41 +3376,22 @@ export default function AdminAssets() {
             gap: 10,
           }}
         >
-          <span
-            style={{
-              fontSize: '0.87rem',
-              fontWeight: 600,
-            }}
-          >
+          <span style={{ fontSize: '0.87rem', fontWeight: 600 }}>
             Assets ({filteredAssets.length})
 
             {filteredAssets.length !== allAssets.length && (
-              <span
-                style={{
-                  marginLeft: 8,
-                  fontSize: '0.7rem',
-                  color: 'var(--text-muted)',
-                }}
-              >
+              <span style={{ marginLeft: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                 of {allAssets.length}
               </span>
             )}
           </span>
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              onClick={expandAll}
-              style={smallActionButton}
-            >
+            <button type="button" onClick={expandAll} style={smallActionButton}>
               Expand All
             </button>
 
-            <button
-              type="button"
-              onClick={collapseAll}
-              style={smallActionButton}
-            >
+            <button type="button" onClick={collapseAll} style={smallActionButton}>
               Collapse All
             </button>
           </div>
@@ -4069,39 +3401,21 @@ export default function AdminAssets() {
 
         <div style={{ overflowX: 'auto' }}>
           {loading ? (
-            <div
-              style={{
-                padding: '2rem',
-                textAlign: 'center',
-                color: 'var(--text-muted)',
-              }}
-            >
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
               Loading assets...
             </div>
           ) : filteredAssets.length === 0 ? (
-            <div
-              style={{
-                padding: '2rem',
-                textAlign: 'center',
-                color: 'var(--text-muted)',
-              }}
-            >
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
               No assets found.
             </div>
           ) : (
             <div>
               {categories.map((category) => {
                 const expanded = expandedCats.has(category)
-
                 const categoryAssets = groupedAssets[category]
 
                 return (
-                  <div
-                    key={category}
-                    style={{
-                      borderBottom: '1px solid var(--border-mid)',
-                    }}
-                  >
+                  <div key={category} style={{ borderBottom: '1px solid var(--border-mid)' }}>
                     {/* CATEGORY HEADER */}
 
                     <div
@@ -4115,14 +3429,7 @@ export default function AdminAssets() {
                         cursor: 'pointer',
                       }}
                     >
-                                            <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                          gap: 10,
-                        }}
-                      >
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                         <Boxes size={16} color="var(--red-primary)" />
 
                         <span
@@ -4147,8 +3454,7 @@ export default function AdminAssets() {
                             border: '1px solid var(--border)',
                           }}
                         >
-                                                    {categoryAssets.length} asset
-                          {categoryAssets.length > 1 ? 's' : ''}
+                          {categoryAssets.length} asset{categoryAssets.length > 1 ? 's' : ''}
                         </span>
 
                         <button
@@ -4171,9 +3477,7 @@ export default function AdminAssets() {
                       )}
                     </div>
 
-                    {/* CATEGORY TABLE */}
-
-                                       {/* MOBILE: CARD LIST */}
+                    {/* MOBILE: CARD LIST */}
 
                     {expanded && isMobile && (
                       <div
@@ -4245,13 +3549,7 @@ export default function AdminAssets() {
                                 {asset.name}
                               </div>
 
-                              <div
-                                style={{
-                                  fontSize: '0.76rem',
-                                  color: 'var(--text-muted)',
-                                  marginBottom: 8,
-                                }}
-                              >
+                              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: 8 }}>
                                 {assetSummary(asset)}
                               </div>
 
@@ -4317,13 +3615,7 @@ export default function AdminAssets() {
                     {/* DESKTOP: TABLE */}
 
                     {expanded && !isMobile && (
-                      <table
-                        style={{
-                          width: '100%',
-                          borderCollapse: 'collapse',
-                          minWidth: 1000,
-                        }}
-                      >
+                      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1000 }}>
                         <thead>
                           <tr>
                             <TableHeader title="Code" />
@@ -4340,17 +3632,12 @@ export default function AdminAssets() {
                         <tbody>
                           {categoryAssets.map((asset) => {
                             const id = asset._id || asset.id || ''
-                            const expired = isWarrantyExpired(
-                              asset.warranty_until
-                            )
+                            const expired = isWarrantyExpired(asset.warranty_until)
 
                             return (
                               <tr
                                 key={id || asset.asset_code}
-                                style={{
-                                  borderBottom:
-                                    '1px solid var(--border-mid)',
-                                }}
+                                style={{ borderBottom: '1px solid var(--border-mid)' }}
                               >
                                 {/* 1. CODE */}
 
@@ -4376,13 +3663,7 @@ export default function AdminAssets() {
                                   }}
                                 >
                                   {asset.assigned_to_name ? (
-                                    <div
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                      }}
-                                    >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                       <span
                                         style={{
                                           width: 22,
@@ -4398,12 +3679,10 @@ export default function AdminAssets() {
                                           flexShrink: 0,
                                         }}
                                       >
-                                        {asset.assigned_to_name
-                                          .charAt(0)
-                                          .toUpperCase()}
+                                        {asset.assigned_to_name.charAt(0).toUpperCase()}
                                       </span>
 
-                                                                            <span
+                                      <span
                                         onClick={() =>
                                           asset.assigned_to &&
                                           openPersonHistory(
@@ -4423,13 +3702,7 @@ export default function AdminAssets() {
                                       </span>
                                     </div>
                                   ) : (
-                                    <span
-                                      style={{
-                                        color: 'var(--text-muted)',
-                                      }}
-                                    >
-                                      —
-                                    </span>
+                                    <span style={{ color: 'var(--text-muted)' }}>—</span>
                                   )}
                                 </td>
 
@@ -4456,13 +3729,8 @@ export default function AdminAssets() {
                                       fontWeight: 600,
                                       padding: '3px 9px',
                                       borderRadius: 12,
-                                      color:
-                                        STATUS_COLOR[asset.status || ''] ||
-                                        'var(--text-muted)',
-                                      background: `${
-                                        STATUS_COLOR[asset.status || ''] ||
-                                        '#888'
-                                      }18`,
+                                      color: STATUS_COLOR[asset.status || ''] || 'var(--text-muted)',
+                                      background: `${STATUS_COLOR[asset.status || ''] || '#888'}18`,
                                     }}
                                   >
                                     {asset.status}
@@ -4499,43 +3767,24 @@ export default function AdminAssets() {
                                   style={{
                                     padding: '12px 1.2rem',
                                     fontSize: '0.75rem',
-                                    color: expired
-                                      ? '#c62828'
-                                      : 'var(--text-muted)',
+                                    color: expired ? '#c62828' : 'var(--text-muted)',
                                     fontWeight: expired ? 600 : 400,
                                     whiteSpace: 'nowrap',
                                   }}
                                 >
                                   {asset.warranty_until
-                                    ? new Date(
-                                        asset.warranty_until
-                                      ).toLocaleDateString('en-GB')
+                                    ? new Date(asset.warranty_until).toLocaleDateString('en-GB')
                                     : '—'}
 
                                   {expired && asset.warranty_until && (
-                                    <div
-                                      style={{
-                                        fontSize: '0.6rem',
-                                        marginTop: 2,
-                                      }}
-                                    >
-                                      Expired
-                                    </div>
+                                    <div style={{ fontSize: '0.6rem', marginTop: 2 }}>Expired</div>
                                   )}
                                 </td>
 
                                 {/* 8. ACTIONS */}
 
                                 <td style={{ padding: '12px 1.2rem' }}>
-                                  <div
-                                    style={{
-                                      display: 'flex',
-                                      gap: 4,
-                                      flexWrap: 'nowrap',
-                                    }}
-                                  >
-                                    {/* ASSIGN */}
-
+                                  <div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap' }}>
                                     {asset.status === 'Available' && (
                                       <button
                                         type="button"
@@ -4558,8 +3807,6 @@ export default function AdminAssets() {
                                         Assign
                                       </button>
                                     )}
-
-                                    {/* UNASSIGN */}
 
                                     {asset.status === 'Assigned' && (
                                       <button
@@ -4584,8 +3831,6 @@ export default function AdminAssets() {
                                       </button>
                                     )}
 
-                                    {/* HISTORY */}
-
                                     <button
                                       type="button"
                                       onClick={() => openHistory(asset)}
@@ -4603,8 +3848,6 @@ export default function AdminAssets() {
                                     >
                                       <HistoryIcon size={12} />
                                     </button>
-
-                                    {/* EDIT */}
 
                                     <button
                                       type="button"
@@ -4627,8 +3870,6 @@ export default function AdminAssets() {
                                       Edit
                                     </button>
 
-                                    {/* DELETE */}
-
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -4642,8 +3883,7 @@ export default function AdminAssets() {
                                         gap: 4,
                                         padding: '3px 7px',
                                         borderRadius: 5,
-                                        border:
-                                          '1px solid rgba(198,40,40,0.25)',
+                                        border: '1px solid rgba(198,40,40,0.25)',
                                         background: 'rgba(198,40,40,0.08)',
                                         color: '#c62828',
                                         cursor: 'pointer',
@@ -4674,16 +3914,8 @@ export default function AdminAssets() {
           FIND & REPLACE MODAL
       =================================================== */}
 
-      <Modal
-        open={showReplace}
-        onClose={closeReplace}
-        title="Find & Replace Category"
-      >
-        <ReplaceCategoryForm
-          onSuccess={afterSave}
-          onCancel={closeReplace}
-          setMsg={setMsg}
-        />
+      <Modal open={showReplace} onClose={closeReplace} title="Find & Replace Category">
+        <ReplaceCategoryForm onSuccess={afterSave} onCancel={closeReplace} setMsg={setMsg} />
       </Modal>
 
       {/* ===================================================
@@ -4725,19 +3957,13 @@ export default function AdminAssets() {
                 justifyContent: 'space-between',
               }}
             >
-              <span style={{ fontSize: '1.05rem', fontWeight: 700 }}>
-                Import Assets from Excel
-              </span>
+              <span style={{ fontSize: '1.05rem', fontWeight: 700 }}>Import Assets from Excel</span>
 
               <button
                 type="button"
                 onClick={closeImport}
                 title="Close"
-                style={{
-                  ...secondaryButtonStyle,
-                  padding: '6px 8px',
-                  display: 'flex',
-                }}
+                style={{ ...secondaryButtonStyle, padding: '6px 8px', display: 'flex' }}
               >
                 <X size={16} />
               </button>
@@ -4790,11 +4016,7 @@ export default function AdminAssets() {
       =================================================== */}
 
       {assignAsset && (
-        <Modal
-          open={true}
-          onClose={closeAssign}
-          title="Assign Asset to Employee"
-        >
+        <Modal open={true} onClose={closeAssign} title="Assign Asset to Employee">
           <AssignForm
             asset={assignAsset}
             people={people}
@@ -4810,18 +4032,8 @@ export default function AdminAssets() {
       =================================================== */}
 
       {unassignConfirm && (
-        <Modal
-          open={true}
-          onClose={closeUnassignConfirm}
-          title="Confirm Unassign"
-        >
-          <div
-            style={{
-              padding: '1rem',
-                            minWidth: isMobile ? 0 : 360,
-              maxWidth: 420,
-            }}
-          >
+        <Modal open={true} onClose={closeUnassignConfirm} title="Confirm Unassign">
+          <div style={{ padding: '1rem', minWidth: isMobile ? 0 : 360, maxWidth: 420 }}>
             <div
               style={{
                 padding: '0.8rem',
@@ -4833,8 +4045,7 @@ export default function AdminAssets() {
                 fontSize: '0.8rem',
               }}
             >
-              Are you sure you want to unassign this asset from the
-              employee?
+              Are you sure you want to unassign this asset from the employee?
             </div>
 
             <FormGroup label="Reason">
@@ -4862,18 +4073,8 @@ export default function AdminAssets() {
               </FormGroup>
             )}
 
-            <div
-              style={{
-                display: 'flex',
-                gap: 10,
-                justifyContent: 'flex-end',
-              }}
-            >
-              <button
-                type="button"
-                onClick={closeUnassignConfirm}
-                style={secondaryButtonStyle}
-              >
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={closeUnassignConfirm} style={secondaryButtonStyle}>
                 Cancel
               </button>
 
@@ -4883,9 +4084,7 @@ export default function AdminAssets() {
                   const id = unassignConfirm
 
                   const reason =
-                    unassignReason === 'Other'
-                      ? unassignOther.trim() || 'Other'
-                      : unassignReason
+                    unassignReason === 'Other' ? unassignOther.trim() || 'Other' : unassignReason
 
                   setUnassignConfirm(null)
                   setUnassignReason(UNASSIGN_REASONS[0])
@@ -4916,27 +4115,17 @@ export default function AdminAssets() {
       =================================================== */}
 
       {historyAsset && (
-  <AssetHistoryModal
-    asset={historyAsset}
-    history={history}
-    loading={historyLoading}
-    onClose={() => setHistoryAsset(null)}
-  />
-)}
+        <AssetHistoryModal
+          asset={historyAsset}
+          history={history}
+          loading={historyLoading}
+          onClose={() => setHistoryAsset(null)}
+        />
+      )}
 
       {personView && (
-        <Modal
-          open={true}
-          onClose={() => setPersonView(null)}
-          title={`History — ${personView.name}`}
-        >
-                    <div
-            style={{
-              minWidth: isMobile ? 0 : 520,
-              maxHeight: '60vh',
-              overflow: 'auto',
-            }}
-          >
+        <Modal open={true} onClose={() => setPersonView(null)} title={`History — ${personView.name}`}>
+          <div style={{ minWidth: isMobile ? 0 : 520, maxHeight: '60vh', overflow: 'auto' }}>
             {personLoading ? (
               <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                 Loading...
@@ -4998,7 +4187,6 @@ export default function AdminAssets() {
           </div>
         </Modal>
       )}
-
     </AppLayout>
   )
 }

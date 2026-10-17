@@ -1,8 +1,7 @@
 /* ========================================
-   PREMIUM TICKETDESK THEME
+   TICKETDESK THEME  (new color pattern)
 ======================================== */
 
-/* Add near the top, right after :root and .dark blocks */
 html, body {
   max-width: 100%;
   overflow-x: hidden;
@@ -14,45 +13,46 @@ html, body {
 
 :root {
   /* Colors - Light Mode */
-  --bg: #f8f9fa;
-  --bg-card: #ffffff;
-  --bg-mid: #f1f3f5;
-  --bg-input: #ffffff;
-  
-  --text-main: #1a1a1a;
-  --text-sub: #495057;
-  --text-muted: #868e96;
-  
-  --border: #dee2e6;
-  --border-mid: #e9ecef;
-  
+  --bg: #F6F7F9;
+  --bg-card: #FFFFFF;
+  --bg-mid: #EEF0F3;
+  --bg-input: #FFFFFF;
+
+  --text-main: #1A1D21;
+  --text-sub: #4B5563;
+  --text-muted: #6B7280;
+
+  --border: #E3E6EA;
+  --border-mid: #EDEFF2;
+
   --red-primary: #dc2626;
   --red-bright: #ef4444;
   --red-glow: rgba(220, 38, 38, 0.08);
-  
-  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
+
+  --shadow: 0 1px 3px rgba(16,24,40,0.08), 0 1px 2px rgba(16,24,40,0.04);
+  --shadow-lg: 0 10px 30px rgba(16,24,40,0.12);
 }
 
 .dark {
-  --bg: #0a0a0a;
-  --bg-card: #141414;
-  --bg-mid: #1a1a1a;
-  --bg-input: #1f1f1f;
-  
-  --text-main: #f1f3f5;
-  --text-sub: #adb5bd;
-  --text-muted: #6c757d;
-  
-  --border: #2d2d2d;
-  --border-mid: #242424;
-  
+  /* Colors - Dark Mode */
+  --bg: #0F1115;
+  --bg-card: #181B21;
+  --bg-mid: #20242B;
+  --bg-input: #1E222A;
+
+  --text-main: #E8EAED;
+  --text-sub: #B8BDC4;
+  --text-muted: #9AA0A6;
+
+  --border: #2A2F38;
+  --border-mid: #222730;
+
   --red-primary: #ef4444;
   --red-bright: #f87171;
   --red-glow: rgba(239, 68, 68, 0.12);
-  
-  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-lg: 0 10px 40px rgba(0,0,0,0.5);
+
+  --shadow: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.6);
 }
 
 * {
@@ -159,7 +159,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .priority-medium {
   background: rgba(245, 127, 23, 0.1);
-  color: #f57f17;
+  color: #b45f06;
   border: 1px solid rgba(245, 127, 23, 0.2);
 }
 
@@ -177,7 +177,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .status-in-progress {
   background: rgba(255, 152, 0, 0.1);
-  color: #f57c00;
+  color: #b45309;
   border: 1px solid rgba(255, 152, 0, 0.2);
 }
 
@@ -192,6 +192,16 @@ h1, h2, h3, h4, h5, h6 {
   color: #616161;
   border: 1px solid rgba(158, 158, 158, 0.2);
 }
+
+/* Brighter badge text in dark mode for better contrast */
+.dark .priority-critical { color: #ef5350; }
+.dark .priority-high     { color: #ff9800; }
+.dark .priority-medium   { color: #ffc107; }
+.dark .priority-low      { color: #66bb6a; }
+.dark .status-open        { color: #60a5fa; }
+.dark .status-in-progress { color: #fbbf24; }
+.dark .status-resolved    { color: #66bb6a; }
+.dark .status-closed      { color: #9aa0a6; }
 
 /* ========================================
    TOPBAR
@@ -312,25 +322,6 @@ tr:hover {
 }
 
 /* ========================================
-   RESPONSIVE
-======================================== */
-
-@media (max-width: 768px) {
-  .sidebar {
-    width: 100% !important;
-  }
-  
-  .topbar {
-    padding: 0 0.8rem !important;
-  }
-  
-  main {
-    margin-left: 0 !important;
-    padding: 1rem !important;
-  }
-}
-
-/* ========================================
    SCROLLBAR (GLOBAL)
 ======================================== */
 
@@ -353,7 +344,7 @@ tr:hover {
 }
 
 /* ========================================
-   RESPONSIVE (mobile)
+   RESPONSIVE
 ======================================== */
 
 .stats-grid {
@@ -380,11 +371,18 @@ tr:hover {
     width: min(280px, 82vw) !important;
   }
 
+  .topbar {
+    padding: 0 0.8rem !important;
+  }
+
   .logout-label { display: none; }
   .role-tag { display: none; }
   .brand-text { font-size: 0.95rem; }
 
-  main { padding: 1rem !important; }
+  main {
+    margin-left: 0 !important;
+    padding: 1rem !important;
+  }
 
   /* Desktop table hidden on mobile, mobile-card list shown instead */
   .desktop-table-wrap { display: none !important; }
